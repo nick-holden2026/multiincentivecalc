@@ -407,7 +407,7 @@ Add Entry
 <div class="form-row">
 <div class="form-group">
 <label>Agent Name</label>
-<input type="text" id="newEntryAgent" placeholder="e.g. Clay SunBoost">
+<input type="text" id="newEntryAgent" placeholder="e.g. Clay">
 </div>
 <div class="form-group">
 <label>Project No.</label>
@@ -505,7 +505,7 @@ Add Entry
 
 <div class="paste-area">
 <h3>Paste CRM Data</h3>
-<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below. The system will automatically detect the <strong>Agent Name</strong> by finding lines containing "SunBoost". Only recognizes project IDs starting with <strong>SA, SB, or 3P</strong>, and strictly extracts lines containing "kW".</p>
+<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below. The system will automatically detect the <strong>Agent Name</strong> by finding lines containing "SunBoost" or "3PSolar" and normalize it to the first word (e.g., "Clay SunBoost" and "Clay 3psolar" both become <strong>Clay</strong>). Only recognizes project IDs starting with <strong>SA, SB, or 3P</strong>.</p>
 <textarea id="pasteBox" placeholder="SA99109&#10;Stephen Bishop&#10;19-Aug-2026&#10;Clay SunBoost&#10;...&#10;0kW + 25.6kW&#10;..."></textarea>
 <div class="paste-actions">
 <button class="btn btn-primary" onclick="parsePaste()">
@@ -557,9 +557,19 @@ let entries = [];
 let rowId = 0;
 let slabChart = null, mixChart = null;
 
+/* ========== AGENT NAME NORMALIZATION ========== */
+// Extracts the first word from an agent name and title-cases it.
+// "Clay SunBoost" -> "Clay", "Clay 3psolar" -> "Clay", "keith" -> "Keith"
+function normalizeAgentName(name) {
+    if (!name) return 'Unknown';
+    const firstWord = name.trim().split(/\s+/)[0];
+    if (!firstWord) return 'Unknown';
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+}
+
 /* ========== RESET DASHBOARD ========== */
 function resetDashboard() {
-    if (confirm("⚠️ Are you sure you want to reset the dashboard?\n\nThis will:\n- Clear all entered sales data and custom products\n- Clear cookies for this site\n- Force a hard refresh to clear the browser cache\n\nThis action cannot be undone.")) {
+    if (confirm("️ Are you sure you want to reset the dashboard?\n\nThis will:\n- Clear all entered sales data and custom products\n- Clear cookies for this site\n- Force a hard refresh to clear the browser cache\n\nThis action cannot be undone.")) {
         document.cookie.split(";").forEach(function(c) { 
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/"); 
         });
@@ -629,7 +639,7 @@ function addRow(kw, product, project, name, status, agent){
         status: status || 'Active',
         product: product || products[0]?.name || 'Standard', 
         kw: kw || 0,
-        agent: agent || 'Unknown'
+        agent: normalizeAgentName(agent)
     });
     renderRows(); calculate(); updateActivity();
 }
@@ -717,7 +727,7 @@ function calculateAgentStats() {
     const projectCounts = {};
     
     entries.forEach(e => {
-        const agent = e.agent || 'Unknown';
+        const agent = normalizeAgentName(e.agent);
         if (!agents[agent]) {
             agents[agent] = { name: agent, totalKw: 0, deadKw: 0 };
             projectCounts[agent] = new Set();
@@ -827,7 +837,7 @@ function deadStockCalc(deadKw){
     });
     return {total, rows, kw};
 }
-function inr(n){ return '' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function inr(n){ return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 function calculate(){
     let totalKw = 0, deadKw = 0;
@@ -942,15 +952,13 @@ function updateActivity(){
 const DEAD_BRAND_RX = /ESY|SMILE|FORCE-H|SIH-|SIEB|PYLON|ALPHA|SWATTEN/i;
 const BATTERY_HINT_RX = /KWH|BAT|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
 const PANEL_HINT_RX = /JAM|SPDG|IEC\s?61215|LR|PANEL/i;
-
-// ✅ STRICT: Only recognize SA, SB, 3P as valid project IDs
 const RECORD_ID_RX = /^(SA|SB|3P)\d{3,}/i;
-
-// ✅ STRICT: Must explicitly contain "kW" and match the exact format
 const KW_LINE_RX = /^(\d+(?:\.\d+)?)\s*kW\s*\+\s*(\d+(?:\.\d+)?)\s*kW$/i;
 
+// ✅ Detect agent/company line - matches "SunBoost", "3PSolar", "3psolar" etc.
+const AGENT_LINE_RX = /sunboost|3psolar/i;
+
 function parseCRMBlocks(lines){
-    // ✅ Filter out empty lines first to handle formatting inconsistencies
     const cleanLines = lines.filter(l => l.trim().length > 0);
     
     const boundaries = [];
@@ -965,30 +973,27 @@ function parseCRMBlocks(lines){
         const end = idx+1 < boundaries.length ? boundaries[idx+1] : cleanLines.length;
         const block = cleanLines.slice(start, end);
         
-        // ✅ Find agent name by searching for line containing "SunBoost"
-        let agentName = 'Unknown Agent';
+        // ✅ Find agent line (contains SunBoost or 3PSolar), then normalize to first word
+        let agentName = 'Unknown';
         for (let i = 0; i < block.length; i++) {
-            if (/sunboost/i.test(block[i])) {
-                agentName = block[i].trim();
+            if (AGENT_LINE_RX.test(block[i])) {
+                agentName = normalizeAgentName(block[i].trim());
                 break;
             }
         }
         
-        // ✅ STRICT: Find kW line - MUST contain "kW" and match exact pattern
         const kwIdx = block.findIndex(l => KW_LINE_RX.test(l.trim()));
-        if(kwIdx === -1) return; // Skip blocks without a valid kW line
+        if(kwIdx === -1) return;
         
         const m = block[kwIdx].match(KW_LINE_RX);
         const solarKW = parseFloat(m[1]);
         const batteryKW = parseFloat(m[2]);
         
-        // Collect product names (going backwards from kW line)
         const productNames = [];
         let i = kwIdx - 1;
         while(i >= 0 && !RECORD_ID_RX.test(block[i].trim())){
             const line = block[i].trim();
-            // Skip: agent names, dates, standalone numbers, prices, statuses
-            if (/sunboost/i.test(line)) { i--; continue; }
+            if (AGENT_LINE_RX.test(line)) { i--; continue; }
             if (/^\d{1,2}-\w{3}-\d{4}$/.test(line)) { i--; continue; }
             if (/^\d+$/.test(line)) { i--; continue; }
             if (/^\$\s?\d/.test(line)) { i--; continue; }
@@ -1034,19 +1039,20 @@ function parsePaste(){
         const agentCounts = {};
         
         crmRecords.forEach(r => {
-            if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
-            agentCounts[r.agent].add(r.id);
+            const normalizedAgent = normalizeAgentName(r.agent);
+            if (!agentCounts[normalizedAgent]) agentCounts[normalizedAgent] = new Set();
+            agentCounts[normalizedAgent].add(r.id);
             
             if(r.solarKW > 0){
                 const res = ensureProduct(r.solarProd, 'std');
                 if(res.created) newProducts++;
-                addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', normalizedAgent);
                 added++;
             }
             if(r.batteryKW > 0){
                 const res = ensureProduct(r.batteryProd, r.isDead? 'dead': 'std');
                 if(res.created) newProducts++;
-                addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', normalizedAgent);
                 added++;
             }
         });
@@ -1097,7 +1103,7 @@ function handleFileUpload() {
             }
             let added = 0;
             json.forEach(row => {
-                const agent = row.Agent || row.agent || 'Unknown';
+                const agent = normalizeAgentName(row.Agent || row.agent || 'Unknown');
                 const project = row.Project || row.project || row['Project No'] || `SA${Math.floor(10000 + Math.random() * 90000)}`;
                 const name = row.Name || row.name || row['Customer Name'] || 'Customer';
                 const product = row.Product || row.product || 'Standard Panel';
