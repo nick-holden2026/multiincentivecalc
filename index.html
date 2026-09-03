@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunboost Sales Hub - Multi-Agent Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+    --primary:#0176D3; --primary-dark:#014486; --primary-light:#1B96FF; --primary-bg:#EEF4FF;
+    --navy:#032D60; --bg:#F3F3F3; --panel:#FFFFFF; --border:#E5E5E5; --border-dark:#DDDBDA;
+    --text:#181818; --text-secondary:#444444; --muted:#706E6B; --muted-light:#939393;
+    --success:#2E844A; --success-bg:#E4F6E9; --warning:#FE9339; --warning-bg:#FEF0E1;
+    --error:#EA001E; --error-bg:#FDECEA; --purple: #9050E9; --purple-bg:#F3E9FC;
+    --orange:#B85C00; --cyan:#0B8ECC;
+    --font:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Salesforce Sans', Helvetica, Arial, sans-serif;
+    --shadow-sm:0 1px 2px rgba(0,0,0,0.05); --shadow:0 2px 4px rgba(0,0,0,0.06);
+    --radius:6px; --radius-lg:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-padding-top:80px;}
+body{background:var(--bg); color:var(--text); font-family:var(--font); line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; min-height:100vh; display: flex; flex-direction:column;}
+
+.topbar{position:fixed;top:0;left:0;right:0;height:56px;z-index:100;background:var(--navy);color:#fff; display: flex; align-items:center; padding:0 20px;gap:16px;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.topbar .logo{width:32px;height:32px;border-radius:8px; background: linear-gradient(135deg, #00A1E0,#0176D3); display: flex; align-items:center; justify-content:center;font-weight:800;font-size:0.95rem; flex:none;}
+.topbar .brand{font-size:1rem;font-weight:700;letter-spacing:-0.01em;}
+.topbar .brand span{color:#B6C6DB; font-weight:400; margin-left:6px;font-size:0.85rem;}
+.topbar .search{flex:1;max-width:480px;margin:0 auto; position:relative;}
+.topbar .search input {width:100%; padding:7px 14px 7px 36px; border-radius:20px; border:none; background:rgba(255,255,255,0.15); color:#fff;font-family:var(--font); font-size:0.85rem; outline:none; transition:background 0.2s;}
+.topbar .search input::placeholder {color:#B6C6DB;}
+.topbar .search input:focus {background:rgba(255,255,255,0.25);}
+.topbar .search svg{position:absolute;left:12px; top:50%; transform: translateY(-50%); opacity:0.7;}
+.topbar .actions{display: flex;align-items:center;gap:8px;}
+.topbar .icon-btn{width:36px;height:36px;border-radius:50%;border:none; background:transparent; color:#fff;cursor:pointer; display: flex; align-items:center; justify-content:center;position:relative;transition:background 0.15s;}
+.topbar .icon-btn:hover{background:rgba(255,255,255,0.12);}
+.topbar .icon-btn .badge{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%; background:var(--error); color:#fff;font-size:0.65rem; font-weight:700; display: flex; align-items:center; justify-content:center;border:2px solid var(--navy);}
+.topbar .avatar{width:32px;height:32px;border-radius:50%; background:linear-gradient(135deg, #FF7A59,#FF5A36); display: flex; align-items:center; justify-content:center;font-weight:700;font-size:0.8em;cursor:pointer;}
+
+.sidebar{position:fixed; top:56px;left:0;bottom:0;width:232px;background:var(--panel); border-right:1px solid var(--border); overflow-y:auto;z-index:50; transition:transform 0.25s;}
+.sidebar .nav-section{padding:16px 0;}
+.sidebar .nav-label{padding:0 20px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em;color:var(--muted); font-weight:700; margin-bottom:6px;}
+.sidebar .nav-item{display: flex;align-items:center; gap:12px;padding:9px 20px;color:var(--text-secondary); font-size:0.875rem;cursor:pointer;border-left:3px solid transparent;transition:all 0.15s;font-weight:500;}
+.sidebar .nav-item:hover{background:#F7F9FB;color:var(--primary);}
+.sidebar .nav-item.active {background:var(--primary-bg);color:var(--primary); border-left-color:var(--primary); font-weight:600;}
+.sidebar .nav-item svg{flex:none;opacity:0.7;}
+.sidebar .nav-item.active svg{opacity:1;}
+
+.main{margin-left:232px;margin-top:56px; flex:1; display: flex; flex-direction:column; min-height:calc(100vh - 56px);}
+.page-header{background:var(--panel); border-bottom:1px solid var(--border); padding:20px 32px 0;}
+.page-header .breadcrumb {font-size:0.78rem;color:var(--muted); margin-bottom:6px;}
+.page-header .breadcrumb a{color:var(--primary); text-decoration:none;}
+.page-header .breadcrumb a:hover{text-decoration:underline;}
+.page-header .title-row{display: flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+.page-header h1 {font-size:1.5rem; font-weight:700;color:var(--text); letter-spacing:-0.01em;}
+.page-header .subtitle {color:var(--muted); font-size:0.875rem; margin-top:2px;}
+.page-header .actions{display: flex; gap:8px;align-items:center;}
+.btn{padding:8px 16px;border-radius:6px;font-family:var(--font); font-size:0.85rem;font-weight:600;cursor:pointer; border:1px solid transparent; display:inline-flex; align-items:center;gap:6px;transition:all 0.15s;}
+.btn-primary{background:var(--primary); color:#fff;border-color:var(--primary);}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-secondary{background:var(--panel); color:var(--text); border-color:var(--border-dark);}
+.btn-secondary:hover{background:#F7F9FB;}
+.btn-ghost{background:transparent;color:var(--primary);border:none;padding:4px 8px;font-size:0.75rem;cursor:pointer;}
+.btn-ghost:hover{background:var(--primary-bg);}
+.tabs{display:flex; gap:4px;margin-top:16px; overflow-x:auto;}
+.tab-btn{padding:10px 16px;font-size:0.85rem; font-weight:600;color:var(--muted); cursor:pointer; border-bottom:3px solid transparent;transition:all 0.15s; background:none; border-top:none; border-left:none; border-right:none;font-family:var(--font); white-space:nowrap;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--primary); border-bottom-color:var(--primary);}
+.content{padding:24px 32px; flex:1;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;margin-bottom:24px;}
+.kpi-card{background:var(--panel); border-radius:var(--radius-lg); padding:20px;border:1px solid var(--border); box-shadow:var(--shadow-sm); position:relative; overflow:hidden;}
+.kpi-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--primary);}
+.kpi-card.accent-success::before{background:var(--success);}
+.kpi-card.accent-purple::before{background:var(--purple);}
+.kpi-card.accent-warning::before{background:var(--warning);}
+.kpi-card .kpi-header {display: flex; align-items:center; justify-content:space-between;margin-bottom:12px;}
+.kpi-card .kpi-label{font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;color:var(--muted); font-weight:700;}
+.kpi-card .kpi-icon{width:36px;height:36px;border-radius:8px; display: flex; align-items:center; justify-content:center;}
+.kpi-icon.blue{background:var(--primary-bg);color:var(--primary);}
+.kpi-icon.green{background:var(--success-bg); color:var(--success);}
+.kpi-icon.purple{background:var(--purple-bg);color:var(--purple);}
+.kpi-icon.orange{background:var(--warning-bg);color:var(--warning);}
+.kpi-card .kpi-value{font-size:1.75rem; font-weight:800;color:var(--text); letter-spacing:-0.02em;line-height:1.2;}
+.kpi-card .kpi-sub{font-size:0.8em;color:var(--muted); margin-top:4px;}
+.kpi-card .kpi-trend{display:inline-flex; align-items:center; gap:3px; font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:10px; margin-top:8px;}
+.kpi-trend.up{background:var(--success-bg); color:var(--success);}
+
+.charts-row{display:grid; grid-template-columns:2fr 1fr; gap:16px;margin-bottom:24px;}
+.card{background:var(--panel); border-radius:var(--radius-lg); border:1px solid var(--border); box-shadow:var(--shadow-sm); overflow:hidden;}
+.card-header{padding:16px 20px; border-bottom:1px solid var(--border); display: flex;align-items:center; justify-content:space-between;}
+.card-header h3{font-size:0.95rem; font-weight:700;color:var(--text);}
+.card-body{padding:20px;}
+.chart-wrap{position:relative; height:280px;}
+
+.table-toolbar{padding:12px 20px; border-bottom:1px solid var(--border); display: flex;gap:10px;align-items:center; flex-wrap:wrap;}
+.table-toolbar .filter-chip{padding:5px 12px; border-radius:14px;font-size:0.78rem;font-weight:600;background:#F3F3F3;color:var(--text-secondary); cursor:pointer;border:1px solid transparent;transition:all 0.15s;}
+.table-toolbar .filter-chip:hover{background:#E5E5E5;}
+.table-toolbar .filter-chip.active{background:var(--primary-bg);color:var(--primary); border-color:var(--primary);}
+.table-toolbar .search-box{margin-left:auto;position:relative;}
+.table-toolbar .search-box input{padding:6px 12px 6px 32px; border:1px solid var(--border-dark); border-radius:6px;font-family:var(--font); font-size:0.82rem; background:#fff; outline:none; width:200px;}
+.table-toolbar .search-box input:focus {border-color:var(--primary); box-shadow:0 0 0 2px rgba(1,118,211,0.15);}
+.table-toolbar .search-box svg{position:absolute;left:10px;top:50%; transform:translateY(-50%);color:var(--muted);}
+
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;color:var(--muted); font-weight:700; padding:10px 20px; background:#FAFAF9; border-bottom:1px solid var(--border);}
+tbody td{padding:12px 20px; border-bottom:1px solid var(--border); font-size:0.875rem;color:var(--text); vertical-align:middle;}
+tbody tr{transition:background 0.1s;}
+tbody tr:hover{background:#F7F9FB;}
+tbody tr:last-child td{border-bottom:none;}
+.product-cell{display: flex; align-items:center;gap:10px;}
+.product-dot{width:8px;height:8px; border-radius:50%; flex:none;}
+.product-dot.dead{background:var(--purple);}
+.product-dot.std{background:var(--success);}
+.product-name{font-weight:600;color:var(--text);}
+.product-type{font-size:0.72rem;color:var(--muted);}
+.status-badge{display:inline-flex;align-items:center; gap:5px;padding:3px 10px; border-radius:12px;font-size:0.72rem; font-weight:700;text-transform:uppercase; letter-spacing:0.03em;}
+.status-badge.dead{background:var(--purple-bg); color:var(--purple);}
+.status-badge.std{background:var(--success-bg); color:var(--success);}
+.status-badge .dot{width:6px;height:6px;border-radius:50%; background:currentColor;}
+.kw-cell{font-weight:700;color:var(--text); font-variant-numeric:tabular-nums;}
+.row-actions{display: flex; gap:4px;}
+.row-actions button{width:28px;height:28px;border-radius:6px;border:none; background:transparent;color:var(--muted); cursor:pointer;display: flex;align-items:center; justify-content:center;transition:all 0.15s;}
+.row-actions button:hover{background:#F3F3F3;color:var(--text);}
+.row-actions button.delete:hover{background:var(--error-bg);color:var(--error);}
+
+.activity-list{padding:0;}
+.activity-item{display: flex; gap:12px;padding:12px 20px; border-bottom:1px solid var(--border); transition:background 0.1s;}
+.activity-item:last-child {border-bottom:none;}
+.activity-item:hover{background:#F7F9FB;}
+.activity-icon{width:32px;height:32px;border-radius:50%; flex:none;display: flex; align-items:center; justify-content:center;font-size:0.85rem;}
+.activity-icon.blue{background:var(--primary-bg); color:var(--primary);}
+.activity-icon.purple{background:var(--purple-bg);color:var(--purple);}
+.activity-content{flex:1;min-width:0;}
+.activity-title{font-size:0.85rem;color:var(--text); font-weight:500;}
+.activity-title strong{font-weight:700;}
+.activity-meta{font-size:0.75rem;color:var(--muted); margin-top:2px;}
+
+.progress-section{padding:20px;}
+.progress-item{margin-bottom:18px;}
+.progress-item:last-child {margin-bottom:0;}
+.progress-header {display: flex; justify-content:space-between; align-items: baseline;margin-bottom:6px;}
+.progress-label{font-size:0.82rem; font-weight:600;color:var(--text);}
+.progress-value{font-size:0.82rem;color:var(--muted); font-variant-numeric:tabular-nums;}
+.progress-bar{height:8px;background:#F3F3F3;border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.6s ease; background:linear-gradient(90deg, var(--primary), var(--primary-light));}
+.progress-fill.success{background:linear-gradient(90deg, var(--success), #45b05f);}
+.progress-fill.purple{background:linear-gradient(90deg, var(--purple), #a570f0);}
+
+.slab-table thead th{padding:10px 16px;}
+.slab-table tbody td{padding:10px 16px;font-variant-numeric:tabular-nums;}
+.slab-table tbody tr.current{background:var(--primary-bg);}
+.slab-table tbody tr.current td{font-weight:600;}
+.slab-amount{font-weight:700;color:var(--text);}
+
+.add-entry-form{padding:16px 20px; background:#FAFAF9; border-bottom:1px solid var(--border); display:none;}
+.add-entry-form.show{display:block;}
+.form-row{display: flex; gap:12px;align-items:flex-end; flex-wrap:wrap;}
+.form-group{flex:1;min-width:140px;}
+.form-group label{display:block;font-size:0.75rem; font-weight:700;color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;}
+.form-group input,.form-group select,.form-group textarea{width:100%; padding:8px 12px;border:1px solid var(--border-dark); border-radius:6px;font-family:var(--font); font-size:0.875rem; background:#fff; outline:none;transition:border-color 0.15s, box-shadow 0.15s;}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {border-color:var(--primary); box-shadow:0 0 0 2px rgba(1,118,211,0.15);}
+
+.paste-area{padding:20px;background:var(--panel); border-radius:var(--radius-lg); border:1px solid var(--border); box-shadow:var(--shadow-sm);margin-bottom:16px;}
+.paste-area h3{font-size:0.95rem; font-weight:700; margin-bottom:12px;}
+.paste-area textarea{width:100%; min-height:120px; padding:12px; border:1px solid var(--border-dark); border-radius:6px;font-family: 'SF Mono', Consolas, monospace; font-size:0.82rem; background:#FAFAF9; resize:vertical; outline:none;}
+.paste-area textarea:focus {border-color:var(--primary); background:#fff;}
+.paste-actions{display: flex; gap:10px;margin-top:12px;align-items:center; flex-wrap:wrap;}
+.paste-status{font-size:0.82rem;color:var(--muted); font-style:italic;}
+.paste-status.success{color:var(--success); font-style:normal;font-weight:600;}
+
+.chips-wrap{display: flex; flex-wrap:wrap; gap:8px;margin-bottom:16px;}
+.chip{display:inline-flex; align-items:center; gap:8px;padding:6px 12px 6px 14px;border-radius:16px;font-size:0.82rem; font-weight:600; border:1px solid var(--border); background:var(--panel);}
+.chip.dead{background:var(--purple-bg); border-color:#E0D0F0;color:var(--purple);}
+.chip.std{background:var(--success-bg); border-color:#C8E6D0; color:var(--success);}
+.chip button{border:none; background:transparent;color:inherit; cursor:pointer;width:18px;height:18px;border-radius:50%; display: flex; align-items:center; justify-content:center;font-size:0.9rem; opacity:0.6;transition:all 0.15s;}
+.chip button:hover{opacity:1;background:rgba(0,0,0,0.08);}
+
+.empty-state{padding:48px 24px;text-align:center;color:var(--muted);}
+.empty-state svg{opacity:0.3;margin-bottom:12px;}
+.empty-state h4{font-size:1rem;color:var(--text); margin-bottom:4px;}
+.empty-state p{font-size:0.85rem;}
+
+@keyframes sparkle {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.sparkle-text {
+    background: linear-gradient(270deg, #0176D3, #9050E9, #FE9339, #0176D3);
+    background-size: 200% auto;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: sparkle 3s linear infinite;
+    font-weight: 800;
+}
+footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+}
+
+@media (max-width: 1024px){.kpi-grid{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}}
+@media (max-width:768px){.sidebar {transform:translateX(-100%);}.sidebar.open{transform:translateX(0);}.main{margin-left:0;}.content{padding:16px;}.page-header {padding:16px 16px 0;}.kpi-grid{grid-template-columns:1fr;}.menu-toggle{display:flex !important;}}
+.menu-toggle{display:none;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb {background:#D8D8D8; border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:#B8B8B8;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeIn 0.3s ease;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+<button class="icon-btn menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+<div class="logo">SB</div>
+<div class="brand">Sunboost<span>Sales Hub</span></div>
+<div class="search">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input type="text" placeholder="Search sales, products, agents..." oninput="document.getElementById('tableSearch').value=this.value; handleSearchInput();">
+</div>
+<div class="actions">
+<button class="icon-btn" onclick="resetDashboard()" title="Reset Dashboard & Clear All Data" style="color:#FF7A59;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+</button>
+<button class="icon-btn" title="Notifications">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+<span class="badge">3</span>
+</button>
+<div class="avatar" title="Profile">SB</div>
+</div>
+</header>
+
+<aside class="sidebar">
+<nav class="nav-section">
+<div class="nav-label">Main</div>
+<div class="nav-item active" data-nav="dashboard">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+Dashboard
+</div>
+<div class="nav-item" data-nav="team">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+Team & Agents
+</div>
+<div class="nav-item" data-nav="sales">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+Sales Entries
+</div>
+<div class="nav-item" data-nav="products">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+Products
+</div>
+<div class="nav-item" data-nav="import">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+Import Data
+</div>
+<div class="nav-item" data-nav="reports">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+Reports
+</div>
+</nav>
+</aside>
+
+<main class="main">
+<div class="page-header">
+<div class="breadcrumb">
+<a href="#">Home</a> &nbsp;/&nbsp; <a href="#">Sales</a> &nbsp;/&nbsp; Incentive Dashboard
+</div>
+<div class="title-row">
+<div>
+<h1>Incentive Dashboard</h1>
+<div class="subtitle">Track your Sunboost slab incentives and Dead Stock add-ons in real time</div>
+</div>
+<div class="actions">
+<button class="btn btn-secondary" onclick="switchTab('import')">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+Import
+</button>
+<button class="btn btn-primary" onclick="switchTab('sales'); setTimeout(()=>document.getElementById('addEntryForm').classList.add('show'), 100);">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+New Sale
+</button>
+</div>
+</div>
+<div class="tabs">
+<button class="tab-btn active" data-tab="dashboard">Overview</button>
+<button class="tab-btn" data-tab="team">Team & Agents</button>
+<button class="tab-btn" data-tab="sales">Sales Entries</button>
+<button class="tab-btn" data-tab="products">Products</button>
+<button class="tab-btn" data-tab="import">Import</button>
+<button class="tab-btn" data-tab="reports">Reports</button>
+</div>
+</div>
+
+<div class="content">
+<!-- DASHBOARD -->
+<div class="tab-panel active" id="tab-dashboard">
+<div class="kpi-grid">
+<div class="kpi-card">
+<div class="kpi-header">
+<div class="kpi-label">Total kW Sold</div>
+<div class="kpi-icon blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+</div>
+<div class="kpi-value" id="kpiTotalKw">0.00 kW</div>
+<div class="kpi-sub">Combined solar + battery</div>
+<div class="kpi-trend up">▲ Active period</div>
+</div>
+<div class="kpi-card accent-success">
+<div class="kpi-header">
+<div class="kpi-label">Sunboost Incentive</div>
+<div class="kpi-icon green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+</div>
+<div class="kpi-value" id="kpiSunAmt">0.00</div>
+<div class="kpi-sub" id="kpiSunSub">Base + bonus</div>
+</div>
+<div class="kpi-card accent-purple">
+<div class="kpi-header">
+<div class="kpi-label">Dead Stock Add-on</div>
+<div class="kpi-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+</div>
+<div class="kpi-value" id="kpiDeadAmt">0.00</div>
+<div class="kpi-sub" id="kpiDeadSub">0.00 kW dead stock</div>
+</div>
+<div class="kpi-card accent-warning">
+<div class="kpi-header">
+<div class="kpi-label">Combined Total</div>
+<div class="kpi-icon orange"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+</div>
+<div class="kpi-value" id="kpiComboAmt">0.00</div>
+<div class="kpi-sub" id="kpiComboSub">Sunboost + Dead Stock</div>
+</div>
+</div>
+<div class="charts-row">
+<div class="card">
+<div class="card-header"><h3>Sunboost Slab Breakdown</h3></div>
+<div class="card-body"><div class="chart-wrap"><canvas id="slabChart"></canvas></div></div>
+</div>
+<div class="card">
+<div class="card-header"><h3>Product Mix</h3></div>
+<div class="card-body"><div class="chart-wrap"><canvas id="mixChart"></canvas></div></div>
+</div>
+</div>
+<div class="charts-row">
+<div class="card">
+<div class="card-header"><h3>Progress to Next Bonus Tier</h3></div>
+<div class="progress-section" id="progressSection"></div>
+</div>
+<div class="card">
+<div class="card-header"><h3>Recent Activity</h3></div>
+<div class="activity-list" id="activityList">
+<div class="empty-state" style="padding:24px;"><p>No activity yet. Import sales to get started.</p></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- TEAM & AGENTS -->
+<div class="tab-panel" id="tab-team">
+<div class="card">
+<div class="card-header">
+<h3>Agent Performance Leaderboard</h3>
+</div>
+<div class="table-toolbar">
+<div class="search-box" style="margin-left:0;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input type="text" id="agentSearch" placeholder="Search agent..." oninput="renderAgentTable()" style="width:240px;">
+</div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Agent Name</th>
+<th>Total Projects</th>
+<th>Total kW</th>
+<th>Dead Stock kW</th>
+<th>Sunboost Incentive</th>
+<th>Dead Stock Incentive</th>
+<th>Total Incentive</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="agentTableBody"></tbody>
+</table>
+</div>
+</div>
+
+<!-- SALES -->
+<div class="tab-panel" id="tab-sales">
+<div class="card">
+<div class="card-header">
+<h3>All Sales Entries</h3>
+<button class="btn btn-primary" onclick="document.getElementById('addEntryForm').classList.toggle('show')">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+Add Entry
+</button>
+</div>
+<div class="add-entry-form" id="addEntryForm">
+<div class="form-row">
+<div class="form-group">
+<label>Agent Name</label>
+<input type="text" id="newEntryAgent" placeholder="e.g. Clay SunBoost">
+</div>
+<div class="form-group">
+<label>Project No.</label>
+<input type="text" id="newEntryProject" placeholder="e.g. SA12345">
+</div>
+<div class="form-group">
+<label>Customer Name</label>
+<input type="text" id="newEntryName" placeholder="Customer Name">
+</div>
+<div class="form-group">
+<label>Status</label>
+<select id="newEntryStatus">
+<option value="Active">Active</option>
+<option value="Complete">Complete</option>
+<option value="Close">Close</option>
+</select>
+</div>
+<div class="form-group">
+<label>Product</label>
+<select id="newEntryProduct"></select>
+</div>
+<div class="form-group">
+<label>kW Sold</label>
+<input type="number" id="newEntryKw" step="0.01" min="0" placeholder="0.00">
+</div>
+<button class="btn btn-primary" onclick="addEntryFromForm()">Save Entry</button>
+<button class="btn btn-secondary" onclick="document.getElementById('addEntryForm').classList.remove('show')">Cancel</button>
+</div>
+</div>
+<div class="table-toolbar">
+<span class="filter-chip active" data-filter="all">All</span>
+<span class="filter-chip" data-filter="dead">Dead Stock</span>
+<span class="filter-chip" data-filter="std">Standard</span>
+<select id="agentFilter" style="margin-left:12px; padding:6px 12px; border:1px solid var(--border-dark); border-radius:6px; font-family:var(--font); font-size:0.82rem; background:#fff;">
+<option value="all">All Agents</option>
+</select>
+<div class="search-box">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<input type="text" id="tableSearch" placeholder="Search..." oninput="handleSearchInput()">
+</div>
+</div>
+<div id="salesTableWrap">
+<table>
+<thead>
+<tr>
+<th style="width:15%">Agent</th>
+<th style="width:18%">Project / Name</th>
+<th style="width:25%">Product</th>
+<th style="width:12%">Type</th>
+<th style="width:12%">kW Sold</th>
+<th style="width:10%">Status</th>
+<th style="width:8%"></th>
+</tr>
+</thead>
+<tbody id="entryBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<!-- PRODUCTS -->
+<div class="tab-panel" id="tab-products">
+<div class="card">
+<div class="card-header"><h3>Product Catalog</h3></div>
+<div class="card-body">
+<p style="font-size:0.85rem;color:var(--muted); margin-bottom:16px;">Manage your product catalog. Products marked as <strong style="color:var(--purple);">Dead Stock</strong> will automatically qualify for the Dead Stock add-on incentive.</p>
+<div class="chips-wrap" id="productList"></div>
+<div style="display: flex; gap:10px; flex-wrap:wrap; align-items:flex-end; padding-top:16px;border-top:1px solid var(--border);">
+<div class="form-group" style="flex:2;min-width:200px;">
+<label>Product Name</label>
+<input type="text" id="newProductName" placeholder="e.g. Luminous, Growatt">
+</div>
+<div class="form-group" style="flex:1; min-width:150px;">
+<label>Type</label>
+<select id="newProductType">
+<option value="std">Standard</option>
+<option value="dead">Dead Stock</option>
+</select>
+</div>
+<button class="btn btn-primary" onclick="addProduct()">Add Product</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- IMPORT -->
+<div class="tab-panel" id="tab-import">
+<div class="paste-area" style="margin-bottom: 16px;">
+<h3>Upload CSV or Excel File</h3>
+<p style="font-size:0.85rem; color:var(--muted); margin-bottom:12px;">Import raw data spreadsheets directly.</p>
+<input type="file" id="fileUpload" accept=".csv, .xlsx, .xls" style="margin-bottom: 12px; display: block;" />
+<button class="btn btn-primary" onclick="handleFileUpload()">Upload File</button>
+<span id="uploadStatus" style="margin-left: 10px; font-size: 0.9rem; font-weight: 600;"></span>
+</div>
+
+<div class="paste-area">
+<h3>Paste CRM Data</h3>
+<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below. The system will automatically detect the <strong>Agent Name</strong> by finding lines containing "SunBoost". Only recognizes project IDs starting with <strong>SA, SB, or 3P</strong>, and strictly extracts lines containing "kW".</p>
+<textarea id="pasteBox" placeholder="SA99109&#10;Stephen Bishop&#10;19-Aug-2026&#10;Clay SunBoost&#10;...&#10;0kW + 25.6kW&#10;..."></textarea>
+<div class="paste-actions">
+<button class="btn btn-primary" onclick="parsePaste()">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+Parse &amp; Import
+</button>
+<button class="btn btn-secondary" onclick="document.getElementById('pasteBox').value=''">Clear</button>
+<span class="paste-status" id="pasteStatus"></span>
+</div>
+</div>
+</div>
+
+<!-- REPORTS -->
+<div class="tab-panel" id="tab-reports">
+<div class="card" style="margin-bottom:16px;">
+<div class="card-header">
+<h3>Sunboost Slab Breakdown</h3>
+<div style="font-size:0.82rem;color:var(--muted);" id="sunBonusLine"></div>
+</div>
+<table class="slab-table">
+<thead><tr><th>Slab</th><th>Rate/kW</th><th>Your kW</th><th>Amount</th></tr></thead>
+<tbody id="sunBreakdown"></tbody>
+</table>
+</div>
+<div class="card">
+<div class="card-header"><h3>Dead Stock Slab Breakdown</h3></div>
+<table class="slab-table">
+<thead><tr><th>Slab</th><th>Rate/kW</th><th>Your kW</th><th>Amount</th></tr></thead>
+<tbody id="deadBreakdown"></tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+
+<footer>
+    <span class="sparkle-text">Made by Clay</span>
+</footer>
+
+<script>
+/* ========== STATE ========== */
+let products = [
+    {name: 'ESY', type:'dead'},
+    {name: 'Pylontech', type: 'dead'},
+    {name: 'Alpha', type:'dead'},
+    {name: 'Swatten', type:'dead'}
+];
+let entries = [];
+let rowId = 0;
+let slabChart = null, mixChart = null;
+
+/* ========== RESET DASHBOARD ========== */
+function resetDashboard() {
+    if (confirm("⚠️ Are you sure you want to reset the dashboard?\n\nThis will:\n- Clear all entered sales data and custom products\n- Clear cookies for this site\n- Force a hard refresh to clear the browser cache\n\nThis action cannot be undone.")) {
+        document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/"); 
+        });
+        try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
+        const url = new URL(window.location.href);
+        url.searchParams.set('nocache', Date.now().toString());
+        window.location.replace(url.toString());
+    }
+}
+
+/* ========== TAB SWITCHING ========== */
+function switchTab(tabName){
+    document.querySelectorAll('.tab-btn').forEach(t => { t.classList.toggle('active', t.dataset.tab === tabName); });
+    document.querySelectorAll('.nav-item').forEach(n => { n.classList.toggle('active', n.dataset.nav === tabName); });
+    document.querySelectorAll('.tab-panel').forEach(p => { p.classList.toggle('active', p.id === 'tab-' + tabName); });
+    document.querySelector('.sidebar').classList.remove('open');
+    if(tabName === 'team') renderAgentTable();
+}
+document.querySelectorAll('.tab-btn').forEach(btn => { btn.addEventListener('click', () => switchTab(btn.dataset.tab)); });
+document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', () => switchTab(item.dataset.nav)); });
+
+/* ========== PRODUCTS ========== */
+function renderProducts(){
+    const el = document.getElementById('productList');
+    el.innerHTML = '';
+    products.forEach((p, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip ' + p.type;
+        chip.innerHTML = `${p.name} <span style="opacity:.7;font-size:.72em;font-weight:500;">${p.type==='dead'?'DEAD STOCK':'STANDARD'}</span>`;
+        const btn = document.createElement('button');
+        btn.innerHTML = '×';
+        btn.onclick = () => { products.splice(i, 1); renderProducts(); renderRows(); calculate(); };
+        chip.appendChild(btn);
+        el.appendChild(chip);
+    });
+    refreshProductDropdowns();
+}
+function addProduct(){
+    const nameEl = document.getElementById('newProductName');
+    const name = nameEl.value.trim();
+    if(!name) return;
+    const type = document.getElementById('newProductType').value;
+    if(products.some(p => p.name.toLowerCase() === name.toLowerCase())) { nameEl.value=""; return; }
+    products.push({name, type});
+    nameEl.value = '';
+    renderProducts();
+}
+function refreshProductDropdowns(){
+    const sel = document.getElementById('newEntryProduct');
+    if(!sel) return;
+    sel.innerHTML = '';
+    products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = `${p.name} (${p.type==='dead'?'Dead Stock':'Standard'})`;
+        sel.appendChild(opt);
+    });
+}
+
+/* ========== ENTRIES ========== */
+function addRow(kw, product, project, name, status, agent){
+    const id = rowId++;
+    entries.push({
+        id, 
+        project: project || `SA${Math.floor(10000 + Math.random() * 90000)}`, 
+        name: name || 'Customer', 
+        status: status || 'Active',
+        product: product || products[0]?.name || 'Standard', 
+        kw: kw || 0,
+        agent: agent || 'Unknown'
+    });
+    renderRows(); calculate(); updateActivity();
+}
+function removeRow(id){
+    entries = entries.filter(e => e.id !== id);
+    renderRows(); calculate(); updateActivity();
+}
+function renderRows(){
+    const body = document.getElementById('entryBody');
+    const search = (document.getElementById('tableSearch').value || '').toLowerCase();
+    const filter = document.querySelector('.filter-chip.active')?.dataset.filter || 'all';
+    const agentFilterEl = document.getElementById('agentFilter');
+    
+    const uniqueAgents = [...new Set(entries.map(e => e.agent).filter(Boolean))].sort();
+    const currentAgentFilter = agentFilterEl.value;
+    agentFilterEl.innerHTML = '<option value="all">All Agents</option>' + 
+        uniqueAgents.map(a => `<option value="${a}" ${a === currentAgentFilter ? 'selected' : ''}>${a}</option>`).join('');
+
+    const selectedAgent = agentFilterEl.value;
+    
+    const filtered = entries.filter(e => {
+        const prod = products.find(p => p.name.toLowerCase() === e.product.toLowerCase());
+        const type = prod ? prod.type : 'std';
+        if(filter !== 'all' && type !== filter) return false;
+        if(selectedAgent !== 'all' && e.agent !== selectedAgent) return false;
+        if(search && !((e.product && e.product.toLowerCase().includes(search)) || (e.project && e.project.toLowerCase().includes(search)) || (e.name && e.name.toLowerCase().includes(search)) || (e.agent && e.agent.toLowerCase().includes(search)))) return false;
+        return true;
+    });
+
+    if(filtered.length === 0){
+        body.innerHTML = '<tr><td colspan="7"><div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><h4>No entries found</h4><p>Add your first sale or import data to get started.</p></div></td></tr>';
+        return;
+    }
+
+    body.innerHTML = '';
+    filtered.forEach(e => {
+        const prod = products.find(p => p.name.toLowerCase() === e.product.toLowerCase());
+        const type = prod ? prod.type : 'std';
+        const kw = parseFloat(e.kw) || 0;
+        let statusColor = 'var(--primary)';
+        if(e.status === 'Complete') statusColor = 'var(--success)';
+        if(e.status === 'Close') statusColor = 'var(--error)';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${e.agent || '-'}</strong></td>
+            <td><div style="font-weight:700; color:var(--text);">${e.project || '-'}</div><div style="font-size:0.75rem; color:var(--muted);">${e.name || '-'}</div></td>
+            <td><div class="product-cell"><span class="product-dot ${type}"></span><div><div class="product-name">${e.product}</div><div class="product-type">${type==='dead'?'Dead Stock eligible':'Standard product'}</div></div></div></td>
+            <td><span class="status-badge ${type}"><span class="dot"></span>${type==='dead'?'Dead Stock':'Standard'}</span></td>
+            <td class="kw-cell">${kw.toFixed(2)} kW</td>
+            <td><span style="color:${statusColor}; font-size:0.82rem; font-weight:700;">${e.status || 'Active'}</span></td>
+            <td><div class="row-actions"><button class="delete" onclick="removeRow(${e.id})" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></td>
+        `;
+        body.appendChild(tr);
+    });
+}
+function addEntryFromForm(){
+    const agent = document.getElementById('newEntryAgent').value.trim() || 'Unknown';
+    const project = document.getElementById('newEntryProject').value.trim();
+    const name = document.getElementById('newEntryName').value.trim();
+    const status = document.getElementById('newEntryStatus').value;
+    const product = document.getElementById('newEntryProduct').value;
+    const kw = document.getElementById('newEntryKw').value;
+    if(!kw || parseFloat(kw) <= 0){ alert('Please enter a valid kW value'); return; }
+    addRow(parseFloat(kw), product, project, name, status, agent);
+    document.getElementById('newEntryAgent').value = '';
+    document.getElementById('newEntryProject').value = '';
+    document.getElementById('newEntryName').value = '';
+    document.getElementById('newEntryKw').value = '';
+    document.getElementById('addEntryForm').classList.remove('show');
+}
+document.querySelectorAll('.filter-chip').forEach(c => {
+    c.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(x => x.classList.remove('active'));
+        c.classList.add('active');
+        renderRows();
+    });
+});
+document.getElementById('agentFilter').addEventListener('change', renderRows);
+function handleSearchInput() { renderRows(); }
+
+/* ========== AGENT STATS ========== */
+function calculateAgentStats() {
+    const agents = {};
+    const projectCounts = {};
+    
+    entries.forEach(e => {
+        const agent = e.agent || 'Unknown';
+        if (!agents[agent]) {
+            agents[agent] = { name: agent, totalKw: 0, deadKw: 0 };
+            projectCounts[agent] = new Set();
+        }
+        
+        if (e.project) {
+            projectCounts[agent].add(e.project);
+        }
+        
+        const v = parseFloat(e.kw) || 0;
+        agents[agent].totalKw += v;
+        
+        const prod = products.find(p => p.name.trim().toLowerCase() === e.product.trim().toLowerCase());
+        if (prod && prod.type === 'dead') {
+            agents[agent].deadKw += v;
+        }
+    });
+
+    Object.keys(agents).forEach(agent => {
+        const a = agents[agent];
+        a.projectCount = projectCounts[agent].size;
+        const sun = sunboostCalc(a.totalKw);
+        const dead = deadStockCalc(a.deadKw);
+        a.sunIncentive = sun.total;
+        a.deadIncentive = dead.total;
+        a.totalIncentive = sun.total + dead.total;
+    });
+
+    return Object.values(agents).sort((a, b) => b.totalIncentive - a.totalIncentive);
+}
+
+function renderAgentTable() {
+    const tbody = document.getElementById('agentTableBody');
+    const search = (document.getElementById('agentSearch')?.value || '').toLowerCase();
+    const stats = calculateAgentStats();
+    const filtered = stats.filter(a => a.name.toLowerCase().includes(search));
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h4>No agents found</h4></div></td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = filtered.map(a => `
+        <tr>
+            <td><strong>${a.name}</strong></td>
+            <td><strong>${a.projectCount}</strong></td>
+            <td class="kw-cell">${a.totalKw.toFixed(2)} kW</td>
+            <td class="kw-cell">${a.deadKw.toFixed(2)} kW</td>
+            <td style="color:var(--success); font-weight:600;">${inr(a.sunIncentive)}</td>
+            <td style="color:var(--purple); font-weight:600;">${inr(a.deadIncentive)}</td>
+            <td style="color:var(--primary); font-weight:800; font-size:1rem;">${inr(a.totalIncentive)}</td>
+            <td>
+                <button class="btn-ghost" onclick="filterByAgent('${a.name.replace(/'/g, "\\'")}')">View Sales</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterByAgent(agentName) {
+    switchTab('sales');
+    setTimeout(() => {
+        document.getElementById('agentFilter').value = agentName;
+        renderRows();
+    }, 100);
+}
+
+/* ========== CALCULATION ========== */
+function sunboostCalc(totalKw){
+    const kw = Math.max(0, totalKw);
+    const slabs = [
+        {label:'0-250', rate:275, from:0, to:250},
+        {label:'250-500', rate:320, from:250, to:500},
+        {label:'500-1000', rate:350, from:500, to:1000},
+        {label:'1000-1500', rate:400, from:1000, to:1500},
+        {label:'1500-2000', rate:450, from:1500, to:2000},
+        {label:'> 2000', rate:475, from:2000, to:Infinity}
+    ];
+    let base = 0;
+    const rows = slabs.map(s => {
+        const inSlab = s.to === Infinity ? Math.max(0, kw - s.from) : Math.max(0, Math.min(kw, s.to) - s.from);
+        const amt = inSlab * s.rate;
+        base += amt;
+        return {label:s.label, rate:s.rate, kw:inSlab, amt};
+    });
+    let bonus = 0;
+    if(kw > 2000) bonus = 100000;
+    else if(kw > 1500) bonus = 50000;
+    else if(kw > 1000) bonus = 25000;
+    if(kw <= 0){ base = 0; bonus = 0; rows.forEach(r => {r.kw = 0; r.amt = 0;}); }
+    return {base, bonus, total: base + bonus, rows, kw};
+}
+function deadStockCalc(deadKw){
+    const kw = Math.max(0, deadKw);
+    const slabs = [
+        {label:'0-25', rate:0, from:0, to:25},
+        {label:'25-100', rate:125, from:25, to:100},
+        {label:'101-200', rate:150, from:100, to:200},
+        {label:'201-300', rate:175, from:200, to:300},
+        {label:'Above 300', rate:200, from:300, to:Infinity}
+    ];
+    let total = 0;
+    const rows = slabs.map(s => {
+        const inSlab = s.to === Infinity ? Math.max(0, kw - s.from) : Math.max(0, Math.min(kw, s.to) - s.from);
+        const amt = inSlab * s.rate;
+        total += amt;
+        return {label:s.label, rate:s.rate, kw:inSlab, amt};
+    });
+    return {total, rows, kw};
+}
+function inr(n){ return '' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function calculate(){
+    let totalKw = 0, deadKw = 0;
+    entries.forEach(e => {
+        const v = parseFloat(e.kw);
+        if(!isNaN(v) && v > 0){
+            totalKw += v;
+            const prod = products.find(p => p.name.trim().toLowerCase() === e.product.trim().toLowerCase());
+            if(prod && prod.type === 'dead') deadKw += v;
+        }
+    });
+
+    const sun = sunboostCalc(totalKw);
+    const dead = deadStockCalc(deadKw);
+    const combo = sun.total + dead.total;
+
+    document.getElementById('kpiTotalKw').textContent = totalKw.toFixed(2) + ' kW';
+    document.getElementById('kpiSunAmt').textContent = inr(sun.total);
+    document.getElementById('kpiSunSub').textContent = `Base ${inr(sun.base)} + bonus ${inr(sun.bonus)}`;
+    document.getElementById('kpiDeadAmt').textContent = inr(dead.total);
+    document.getElementById('kpiDeadSub').textContent = `${deadKw.toFixed(2)} kW dead stock`;
+    document.getElementById('kpiComboAmt').textContent = inr(combo);
+    document.getElementById('kpiComboSub').textContent = `${totalKw.toFixed(2)} kW total`;
+
+    const sb = document.getElementById('sunBreakdown');
+    sb.innerHTML = sun.rows.map(r => `<tr class="${r.kw > 0 ? 'current':''}"><td>${r.label}</td><td>${r.rate}</td><td>${r.kw.toFixed(2)}</td><td class="slab-amount">${inr(r.amt)}</td></tr>`).join('');
+    document.getElementById('sunBonusLine').textContent = `Applied bonus (single highest): ${inr(sun.bonus)}`;
+
+    const db = document.getElementById('deadBreakdown');
+    db.innerHTML = dead.rows.map(r => `<tr class="${r.kw > 0 ? 'current':''}"><td>${r.label}</td><td>${r.rate}</td><td>${r.kw.toFixed(2)}</td><td class="slab-amount">${inr(r.amt)}</td></tr>`).join('');
+
+    updateCharts(sun, dead);
+    updateProgress(totalKw);
+}
+
+/* ========== CHARTS ========== */
+function updateCharts(sun, dead) {
+    if(typeof Chart === 'undefined') return;
+    try {
+        const slabLabels = sun.rows.map(r => r.label);
+        const slabData = sun.rows.map(r => r.amt);
+        if(slabChart){
+            slabChart.data.labels = slabLabels;
+            slabChart.data.datasets[0].data = slabData;
+            slabChart.update();
+        } else {
+            const ctx = document.getElementById('slabChart');
+            if(ctx){
+                slabChart = new Chart(ctx.getContext('2d'), {
+                    type:'bar',
+                    data:{ labels: slabLabels, datasets:[{ label: 'Amount (₹)', data: slabData, backgroundColor: ['#0176D3','#1B96FF','#45BFFF', '#2E844A', '#9050E9','#FE9339'], borderRadius:6, borderSkipped:false }] },
+                    options:{ responsive:true, maintainAspectRatio:false, plugins: {legend: {display:false}, tooltip: {backgroundColor: '#032D60', padding:12, cornerRadius:6, callbacks: {label: ctx=>'₹'+ctx.parsed.y.toLocaleString('en-IN')}}}, scales:{x:{grid:{display:false}, ticks: {font:{size:11, weight:'600'}}},y:{grid:{color: '#F3F3F3'}, ticks: {callback:v=>'₹'+v.toLocaleString('en-IN'), font: {size:11}}}} }
+                });
+            }
+        }
+
+        let deadTotal = 0, stdTotal = 0;
+        entries.forEach(e => {
+            const v = parseFloat(e.kw) || 0;
+            const prod = products.find(p => p.name.toLowerCase() === e.product.toLowerCase());
+            if(prod && prod.type === 'dead') deadTotal += v; else stdTotal += v;
+        });
+        const mixData = [stdTotal, deadTotal];
+        if(mixChart){
+            mixChart.data.datasets[0].data = mixData;
+            mixChart.update();
+        } else {
+            const ctx2 = document.getElementById('mixChart');
+            if(ctx2){
+                mixChart = new Chart(ctx2.getContext('2d'), {
+                    type: 'doughnut',
+                    data:{ labels: ['Standard', 'Dead Stock'], datasets:[{data:mixData, backgroundColor: ['#0176D3','#9050E9'], borderWidth:0, cutout:'70%'}] },
+                    options:{ responsive:true, maintainAspectRatio:false, plugins: {legend: {position:'bottom', labels: {padding:16, font: {size:12, weight:'600'}}}, tooltip: {backgroundColor: '#032D60', padding: 12, cornerRadius:6, callbacks: {label:ctx=> `${ctx.label}: ${ctx.parsed.toFixed(2)} kW`}}} }
+                });
+            }
+        }
+    } catch(err){ console.warn('Chart error:', err); }
+}
+
+/* ========== PROGRESS ========== */
+function updateProgress(totalKw){
+    const tiers = [
+        {label: 'Next: ₹25,000 bonus', target:1000, color:''},
+        {label: 'Next: ₹50,000 bonus', target:1500, color: 'success'},
+        {label: 'Next: ₹1,00,000 bonus', target:2000, color: 'purple'}
+    ];
+    const section = document.getElementById('progressSection');
+    section.innerHTML = tiers.map(t => {
+        const pct = Math.min(100, (totalKw / t.target) * 100);
+        const reached = totalKw >= t.target;
+        return `<div class="progress-item"><div class="progress-header"><span class="progress-label">${reached?'✔ ':''}${t.label}</span><span class="progress-value">${totalKw.toFixed(2)} / ${t.target} kW (${pct.toFixed(1)}%)</span></div><div class="progress-bar"><div class="progress-fill ${t.color}" style="width:${pct}%;"></div></div></div>`;
+    }).join('');
+}
+
+/* ========== ACTIVITY ========== */
+function updateActivity(){
+    const list = document.getElementById('activityList');
+    if(entries.length === 0){
+        list.innerHTML = '<div class="empty-state" style="padding:24px;"><p>No activity yet. Import sales to get started.</p></div>';
+        return;
+    }
+    const recent = entries.slice(-5).reverse();
+    list.innerHTML = recent.map(e => {
+        const prod = products.find(p => p.name.toLowerCase() === e.product.toLowerCase());
+        const type = prod ? prod.type : 'std';
+        const iconClass = type === 'dead' ? 'purple' : 'blue';
+        return `<div class="activity-item fade-in"><div class="activity-icon ${iconClass}">📦</div><div class="activity-content"><div class="activity-title">Added <strong>${e.agent || 'Unknown'}</strong>: ${e.project || 'Project'} - ${parseFloat(e.kw).toFixed(2)} kW</div><div class="activity-meta">${type==='dead'?'Dead Stock':'Standard'} • Status: ${e.status || 'Active'}</div></div></div>`;
+    }).join('');
+}
+
+/* ========== PASTE & FILE UPLOAD PARSER ========== */
+const DEAD_BRAND_RX = /ESY|SMILE|FORCE-H|SIH-|SIEB|PYLON|ALPHA|SWATTEN/i;
+const BATTERY_HINT_RX = /KWH|BAT|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
+const PANEL_HINT_RX = /JAM|SPDG|IEC\s?61215|LR|PANEL/i;
+
+// ✅ STRICT: Only recognize SA, SB, 3P as valid project IDs
+const RECORD_ID_RX = /^(SA|SB|3P)\d{3,}/i;
+
+// ✅ STRICT: Must explicitly contain "kW" and match the exact format
+const KW_LINE_RX = /^(\d+(?:\.\d+)?)\s*kW\s*\+\s*(\d+(?:\.\d+)?)\s*kW$/i;
+
+function parseCRMBlocks(lines){
+    // ✅ Filter out empty lines first to handle formatting inconsistencies
+    const cleanLines = lines.filter(l => l.trim().length > 0);
+    
+    const boundaries = [];
+    cleanLines.forEach((l,i) => { 
+        if(RECORD_ID_RX.test(l.trim())) boundaries.push(i); 
+    });
+    
+    if(boundaries.length === 0) return null;
+    
+    const records = [];
+    boundaries.forEach((start,idx) => {
+        const end = idx+1 < boundaries.length ? boundaries[idx+1] : cleanLines.length;
+        const block = cleanLines.slice(start, end);
+        
+        // ✅ Find agent name by searching for line containing "SunBoost"
+        let agentName = 'Unknown Agent';
+        for (let i = 0; i < block.length; i++) {
+            if (/sunboost/i.test(block[i])) {
+                agentName = block[i].trim();
+                break;
+            }
+        }
+        
+        // ✅ STRICT: Find kW line - MUST contain "kW" and match exact pattern
+        const kwIdx = block.findIndex(l => KW_LINE_RX.test(l.trim()));
+        if(kwIdx === -1) return; // Skip blocks without a valid kW line
+        
+        const m = block[kwIdx].match(KW_LINE_RX);
+        const solarKW = parseFloat(m[1]);
+        const batteryKW = parseFloat(m[2]);
+        
+        // Collect product names (going backwards from kW line)
+        const productNames = [];
+        let i = kwIdx - 1;
+        while(i >= 0 && !RECORD_ID_RX.test(block[i].trim())){
+            const line = block[i].trim();
+            // Skip: agent names, dates, standalone numbers, prices, statuses
+            if (/sunboost/i.test(line)) { i--; continue; }
+            if (/^\d{1,2}-\w{3}-\d{4}$/.test(line)) { i--; continue; }
+            if (/^\d+$/.test(line)) { i--; continue; }
+            if (/^\$\s?\d/.test(line)) { i--; continue; }
+            if (/^(active|complete|closed|booked|connection)/i.test(line)) { i--; continue; }
+            
+            productNames.unshift(line);
+            i--;
+        }
+        
+        const id = block[0].trim();
+        const customerName = block.length > 1 ? block[1].trim() : 'Unknown';
+        const isDead = productNames.some(p => DEAD_BRAND_RX.test(p));
+        const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
+        const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
+        
+        records.push({id, customerName, agent: agentName, solarKW, batteryKW, isDead, batteryProd, solarProd});
+    });
+    
+    return records.length ? records : null;
+}
+
+function ensureProduct(name, type){
+    let p = products.find(item => item.name.toLowerCase() === name.toLowerCase());
+    if(!p){ p = {name, type}; products.push(p); return {p, created:true}; }
+    return {p, created:false};
+}
+
+function parsePaste(){
+    const raw = document.getElementById('pasteBox').value;
+    const status = document.getElementById('pasteStatus');
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    
+    if(lines.length === 0){ 
+        status.textContent = 'Nothing to parse.'; 
+        status.className='paste-status'; 
+        return; 
+    }
+    
+    const crmRecords = parseCRMBlocks(lines);
+    
+    if(crmRecords){
+        let added = 0, newProducts = 0;
+        const agentCounts = {};
+        
+        crmRecords.forEach(r => {
+            if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
+            agentCounts[r.agent].add(r.id);
+            
+            if(r.solarKW > 0){
+                const res = ensureProduct(r.solarProd, 'std');
+                if(res.created) newProducts++;
+                addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                added++;
+            }
+            if(r.batteryKW > 0){
+                const res = ensureProduct(r.batteryProd, r.isDead? 'dead': 'std');
+                if(res.created) newProducts++;
+                addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                added++;
+            }
+        });
+        
+        renderProducts(); 
+        renderRows(); 
+        calculate(); 
+        updateActivity();
+        
+        let summary = Object.entries(agentCounts).map(([agent, projects]) => 
+            `${agent}: ${projects.size} projects`
+        ).join(', ');
+        
+        status.textContent = `✔ Recognized ${crmRecords.length} projects → added ${added} sale lines (${summary})`;
+        status.className = 'paste-status success';
+    } else {
+        status.textContent = 'Could not parse format. Please ensure project IDs start with SA, SB, or 3P and contain a kW line.';
+        status.className = 'paste-status';
+    }
+    
+    document.getElementById('pasteBox').value = '';
+}
+
+function handleFileUpload() {
+    const fileInput = document.getElementById('fileUpload');
+    const statusLabel = document.getElementById('uploadStatus');
+    if (!fileInput.files.length) {
+        statusLabel.style.color = "var(--error)";
+        statusLabel.innerText = "Please select a file first.";
+        return;
+    }
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    statusLabel.style.color = "var(--text)";
+    statusLabel.innerText = "Reading file...";
+
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+            if (json.length === 0) {
+                statusLabel.style.color = "var(--error)";
+                statusLabel.innerText = "File is empty.";
+                return;
+            }
+            let added = 0;
+            json.forEach(row => {
+                const agent = row.Agent || row.agent || 'Unknown';
+                const project = row.Project || row.project || row['Project No'] || `SA${Math.floor(10000 + Math.random() * 90000)}`;
+                const name = row.Name || row.name || row['Customer Name'] || 'Customer';
+                const product = row.Product || row.product || 'Standard Panel';
+                const kw = parseFloat(row.kW || row.kw || row['kW Sold'] || 0);
+                const status = row.Status || row.status || 'Active';
+                if (kw > 0) {
+                    ensureProduct(product, 'std');
+                    addRow(kw, product, project, name, status, agent);
+                    added++;
+                }
+            });
+            statusLabel.style.color = "var(--success)";
+            statusLabel.innerText = `Success! Added ${added} entries.`;
+            fileInput.value = "";
+            renderProducts(); renderRows(); calculate(); updateActivity();
+        } catch (error) {
+            console.error(error);
+            statusLabel.style.color = "var(--error)";
+            statusLabel.innerText = "Error parsing file format.";
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+/* ========== INIT ========== */
+try {
+    renderProducts();
+    calculate();
+    updateActivity();
+} catch(err){
+    console.error('Init error:', err);
+}
+</script>
+</body>
+</html>
