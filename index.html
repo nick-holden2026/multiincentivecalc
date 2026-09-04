@@ -407,7 +407,7 @@ Add Entry
 <div class="form-row">
 <div class="form-group">
 <label>Agent Name</label>
-<input type="text" id="newEntryAgent" placeholder="e.g. Clay">
+<input type="text" id="newEntryAgent" placeholder="e.g. Clay SunBoost">
 </div>
 <div class="form-group">
 <label>Project No.</label>
@@ -505,7 +505,7 @@ Add Entry
 
 <div class="paste-area">
 <h3>Paste CRM Data</h3>
-<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below. The system will automatically detect the <strong>Agent Name</strong> by finding lines containing "SunBoost" or "3PSolar" and normalize it to the first word (e.g., "Clay SunBoost" and "Clay 3psolar" both become <strong>Clay</strong>). Only recognizes project IDs starting with <strong>SA, SB, or 3P</strong>.</p>
+<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below — either a tab-separated table (straight from a spreadsheet) or one field per line. The Agent Name is detected from a line/cell containing "SunBoost" or "3PSolar" — both are treated as the same agent (e.g. "Clay SunBoost" and "Clay 3PSolar" both count as "Clay"). Only project IDs starting with <strong>SA, SB, or 3P</strong> are recognized, and only lines containing "kW" are used for the kW split.</p>
 <textarea id="pasteBox" placeholder="SA99109&#10;Stephen Bishop&#10;19-Aug-2026&#10;Clay SunBoost&#10;...&#10;0kW + 25.6kW&#10;..."></textarea>
 <div class="paste-actions">
 <button class="btn btn-primary" onclick="parsePaste()">
@@ -558,18 +558,15 @@ let rowId = 0;
 let slabChart = null, mixChart = null;
 
 /* ========== AGENT NAME NORMALIZATION ========== */
-// Extracts the first word from an agent name and title-cases it.
-// "Clay SunBoost" -> "Clay", "Clay 3psolar" -> "Clay", "keith" -> "Keith"
-function normalizeAgentName(name) {
-    if (!name) return 'Unknown';
-    const firstWord = name.trim().split(/\s+/)[0];
-    if (!firstWord) return 'Unknown';
-    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+function canonicalizeAgent(raw){
+    if(!raw) return 'Unknown Agent';
+    const stripped = raw.trim().replace(/\s*(sun\s?boost|3p\s?solar)\s*$/i, '').trim();
+    return stripped || raw.trim();
 }
 
 /* ========== RESET DASHBOARD ========== */
 function resetDashboard() {
-    if (confirm("️ Are you sure you want to reset the dashboard?\n\nThis will:\n- Clear all entered sales data and custom products\n- Clear cookies for this site\n- Force a hard refresh to clear the browser cache\n\nThis action cannot be undone.")) {
+    if (confirm("⚠️ Are you sure you want to reset the dashboard?\n\nThis will:\n- Clear all entered sales data and custom products\n- Clear cookies for this site\n- Force a hard refresh to clear the browser cache\n\nThis action cannot be undone.")) {
         document.cookie.split(";").forEach(function(c) { 
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/"); 
         });
@@ -639,7 +636,7 @@ function addRow(kw, product, project, name, status, agent){
         status: status || 'Active',
         product: product || products[0]?.name || 'Standard', 
         kw: kw || 0,
-        agent: normalizeAgentName(agent)
+        agent: agent || 'Unknown'
     });
     renderRows(); calculate(); updateActivity();
 }
@@ -704,7 +701,7 @@ function addEntryFromForm(){
     const product = document.getElementById('newEntryProduct').value;
     const kw = document.getElementById('newEntryKw').value;
     if(!kw || parseFloat(kw) <= 0){ alert('Please enter a valid kW value'); return; }
-    addRow(parseFloat(kw), product, project, name, status, agent);
+    addRow(parseFloat(kw), product, project, name, status, canonicalizeAgent(agent));
     document.getElementById('newEntryAgent').value = '';
     document.getElementById('newEntryProject').value = '';
     document.getElementById('newEntryName').value = '';
@@ -727,7 +724,7 @@ function calculateAgentStats() {
     const projectCounts = {};
     
     entries.forEach(e => {
-        const agent = normalizeAgentName(e.agent);
+        const agent = e.agent || 'Unknown';
         if (!agents[agent]) {
             agents[agent] = { name: agent, totalKw: 0, deadKw: 0 };
             projectCounts[agent] = new Set();
@@ -952,15 +949,21 @@ function updateActivity(){
 const DEAD_BRAND_RX = /ESY|SMILE|FORCE-H|SIH-|SIEB|PYLON|ALPHA|SWATTEN/i;
 const BATTERY_HINT_RX = /KWH|BAT|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
 const PANEL_HINT_RX = /JAM|SPDG|IEC\s?61215|LR|PANEL/i;
-const RECORD_ID_RX = /^(SA|SB|3P)\d{3,}/i;
+
+// Only recognize SA, SB, 3P as valid project IDs — anchored at BOTH ends
+const RECORD_ID_RX = /^(SA|SB|3P)\d{3,}$/i;
+
+// Dedicated pattern for product cells in a tab-table row
+const PRODUCT_CELL_RX = /^\d+[A-Za-z][A-Za-z0-9\-\/]{2,}/;
+
+// Must explicitly contain "kW" and match the exact "X kW + Y kW" format
 const KW_LINE_RX = /^(\d+(?:\.\d+)?)\s*kW\s*\+\s*(\d+(?:\.\d+)?)\s*kW$/i;
 
-// ✅ Detect agent/company line - matches "SunBoost", "3PSolar", "3psolar" etc.
-const AGENT_LINE_RX = /sunboost|3psolar/i;
+// Matches either naming convention for the agent line/cell
+const AGENT_LINE_RX = /(sun\s?boost|3p\s?solar)/i;
 
 function parseCRMBlocks(lines){
     const cleanLines = lines.filter(l => l.trim().length > 0);
-    
     const boundaries = [];
     cleanLines.forEach((l,i) => { 
         if(RECORD_ID_RX.test(l.trim())) boundaries.push(i); 
@@ -973,14 +976,11 @@ function parseCRMBlocks(lines){
         const end = idx+1 < boundaries.length ? boundaries[idx+1] : cleanLines.length;
         const block = cleanLines.slice(start, end);
         
-        // ✅ Find agent line (contains SunBoost or 3PSolar), then normalize to first word
-        let agentName = 'Unknown';
+        let agentRaw = null;
         for (let i = 0; i < block.length; i++) {
-            if (AGENT_LINE_RX.test(block[i])) {
-                agentName = normalizeAgentName(block[i].trim());
-                break;
-            }
+            if (AGENT_LINE_RX.test(block[i])) { agentRaw = block[i].trim(); break; }
         }
+        const agentName = canonicalizeAgent(agentRaw) || 'Unknown Agent';
         
         const kwIdx = block.findIndex(l => KW_LINE_RX.test(l.trim()));
         if(kwIdx === -1) return;
@@ -997,7 +997,7 @@ function parseCRMBlocks(lines){
             if (/^\d{1,2}-\w{3}-\d{4}$/.test(line)) { i--; continue; }
             if (/^\d+$/.test(line)) { i--; continue; }
             if (/^\$\s?\d/.test(line)) { i--; continue; }
-            if (/^(active|complete|closed|booked|connection)/i.test(line)) { i--; continue; }
+            if (/^(active|complete|clos(e|ed)|booked|connection)/i.test(line)) { i--; continue; }
             
             productNames.unshift(line);
             i--;
@@ -1013,6 +1013,44 @@ function parseCRMBlocks(lines){
     });
     
     return records.length ? records : null;
+}
+
+function parseCRMTable(lines){
+    const hasTabs = lines.some(l => l.includes('\t'));
+    if(!hasTabs) return null;
+
+    const records = [];
+    let current = null;
+    lines.forEach(line => {
+        const fields = line.split('\t').map(f => f.trim());
+        const first = fields[0];
+        if (RECORD_ID_RX.test(first)){
+            if(current) records.push(current);
+            current = {id:first, lines:[fields]};
+        } else if(current){ current.lines.push(fields); }
+    });
+    if(current) records.push(current);
+    if(records.length === 0) return null;
+
+    const results = [];
+    records.forEach(rec => {
+        let solarKW=null, batteryKW=null, agentRaw=null;
+        const productNames = [];
+        rec.lines.forEach(fields => fields.forEach(f => {
+            if(!f) return;
+            const kwm = f.match(KW_LINE_RX);
+            if(kwm){ solarKW=parseFloat(kwm[1]); batteryKW=parseFloat(kwm[2]); return; }
+            if(!agentRaw && AGENT_LINE_RX.test(f)) { agentRaw = f; return; }
+            if(PRODUCT_CELL_RX.test(f)) productNames.push(f);
+        }));
+        if(solarKW===null || batteryKW===null) return;
+        const agentName = canonicalizeAgent(agentRaw) || 'Unknown Agent';
+        const isDead = productNames.some(p => DEAD_BRAND_RX.test(p));
+        const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
+        const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
+        results.push({id:rec.id, agent:agentName, solarKW, batteryKW, isDead, batteryProd, solarProd});
+    });
+    return results.length ? results : null;
 }
 
 function ensureProduct(name, type){
@@ -1032,27 +1070,26 @@ function parsePaste(){
         return; 
     }
     
-    const crmRecords = parseCRMBlocks(lines);
+    const crmRecords = parseCRMTable(lines) || parseCRMBlocks(lines);
     
     if(crmRecords){
         let added = 0, newProducts = 0;
         const agentCounts = {};
         
         crmRecords.forEach(r => {
-            const normalizedAgent = normalizeAgentName(r.agent);
-            if (!agentCounts[normalizedAgent]) agentCounts[normalizedAgent] = new Set();
-            agentCounts[normalizedAgent].add(r.id);
+            if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
+            agentCounts[r.agent].add(r.id);
             
             if(r.solarKW > 0){
                 const res = ensureProduct(r.solarProd, 'std');
                 if(res.created) newProducts++;
-                addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', normalizedAgent);
+                addRow(r.solarKW, res.p.name, r.id, r.customerName || 'Unknown', 'Active', r.agent);
                 added++;
             }
             if(r.batteryKW > 0){
                 const res = ensureProduct(r.batteryProd, r.isDead? 'dead': 'std');
                 if(res.created) newProducts++;
-                addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', normalizedAgent);
+                addRow(r.batteryKW, res.p.name, r.id, r.customerName || 'Unknown', 'Active', r.agent);
                 added++;
             }
         });
@@ -1103,7 +1140,8 @@ function handleFileUpload() {
             }
             let added = 0;
             json.forEach(row => {
-                const agent = normalizeAgentName(row.Agent || row.agent || 'Unknown');
+                const agentRaw = row.Agent || row.agent || 'Unknown';
+                const agent = canonicalizeAgent(agentRaw);
                 const project = row.Project || row.project || row['Project No'] || `SA${Math.floor(10000 + Math.random() * 90000)}`;
                 const name = row.Name || row.name || row['Customer Name'] || 'Customer';
                 const product = row.Product || row.product || 'Standard Panel';
