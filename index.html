@@ -538,7 +538,6 @@ Parse &amp; Import
 </table>
 </div>
 </div>
-</div>
 </main>
 
 <footer>
@@ -556,13 +555,6 @@ let products = [
 let entries = [];
 let rowId = 0;
 let slabChart = null, mixChart = null;
-
-/* ========== AGENT NAME NORMALIZATION ========== */
-function canonicalizeAgent(raw){
-    if(!raw) return 'Unknown Agent';
-    const stripped = raw.trim().replace(/\s*(sun\s?boost|3p\s?solar)\s*$/i, '').trim();
-    return stripped || raw.trim();
-}
 
 /* ========== RESET DASHBOARD ========== */
 function resetDashboard() {
@@ -746,6 +738,9 @@ function calculateAgentStats() {
     Object.keys(agents).forEach(agent => {
         const a = agents[agent];
         a.projectCount = projectCounts[agent].size;
+        // Round away floating-point summation drift before slab math.
+        a.totalKw = Math.round(a.totalKw * 100) / 100;
+        a.deadKw = Math.round(a.deadKw * 100) / 100;
         const sun = sunboostCalc(a.totalKw);
         const dead = deadStockCalc(a.deadKw);
         a.sunIncentive = sun.total;
@@ -819,8 +814,7 @@ function sunboostCalc(totalKw){
 function deadStockCalc(deadKw){
     const kw = Math.max(0, deadKw);
     const slabs = [
-        {label:'0-25', rate:0, from:0, to:25},
-        {label:'25-100', rate:125, from:25, to:100},
+        {label:'0-100', rate:125, from:0, to:100},
         {label:'101-200', rate:150, from:100, to:200},
         {label:'201-300', rate:175, from:200, to:300},
         {label:'Above 300', rate:200, from:300, to:Infinity}
@@ -846,6 +840,9 @@ function calculate(){
             if(prod && prod.type === 'dead') deadKw += v;
         }
     });
+    // Round away floating-point summation drift before slab math (see deadStockCalc/sunboostCalc).
+    totalKw = Math.round(totalKw * 100) / 100;
+    deadKw = Math.round(deadKw * 100) / 100;
 
     const sun = sunboostCalc(totalKw);
     const dead = deadStockCalc(deadKw);
@@ -950,20 +947,31 @@ const DEAD_BRAND_RX = /ESY|SMILE|FORCE-H|SIH-|SIEB|PYLON|ALPHA|SWATTEN/i;
 const BATTERY_HINT_RX = /KWH|BAT|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
 const PANEL_HINT_RX = /JAM|SPDG|IEC\s?61215|LR|PANEL/i;
 
-// Only recognize SA, SB, 3P as valid project IDs — anchored at BOTH ends
+// Only recognize SA, SB, 3P as valid project IDs — anchored at BOTH ends so it only
+// matches a cell/line that IS entirely a project ID, never a substring of something else.
 const RECORD_ID_RX = /^(SA|SB|3P)\d{3,}$/i;
 
-// Dedicated pattern for product cells in a tab-table row
+// Dedicated pattern for product cells in a tab-table row: qty digits glued to a product code.
 const PRODUCT_CELL_RX = /^\d+[A-Za-z][A-Za-z0-9\-\/]{2,}/;
 
-// Must explicitly contain "kW" and match the exact "X kW + Y kW" format
+// Must explicitly contain "kW" and match the exact "X kW + Y kW" format.
 const KW_LINE_RX = /^(\d+(?:\.\d+)?)\s*kW\s*\+\s*(\d+(?:\.\d+)?)\s*kW$/i;
 
-// Matches either naming convention for the agent line/cell
+// Matches either naming convention for the agent line/cell.
 const AGENT_LINE_RX = /(sun\s?boost|3p\s?solar)/i;
 
+// Strips the trailing "SunBoost"/"3PSolar" suffix so "Clay SunBoost" and "Clay 3PSolar"
+// both collapse to the same canonical agent name "Clay" and get merged together.
+function canonicalizeAgent(raw){
+    if(!raw) return 'Unknown Agent';
+    const stripped = raw.trim().replace(/\s*(sun\s?boost|3p\s?solar)\s*$/i, '').trim();
+    return stripped || raw.trim();
+}
+
 function parseCRMBlocks(lines){
+    // Filter out empty lines first to handle formatting inconsistencies
     const cleanLines = lines.filter(l => l.trim().length > 0);
+    
     const boundaries = [];
     cleanLines.forEach((l,i) => { 
         if(RECORD_ID_RX.test(l.trim())) boundaries.push(i); 
@@ -976,23 +984,27 @@ function parseCRMBlocks(lines){
         const end = idx+1 < boundaries.length ? boundaries[idx+1] : cleanLines.length;
         const block = cleanLines.slice(start, end);
         
+        // Find agent line by searching for "SunBoost" or "3PSolar" (either naming convention)
         let agentRaw = null;
         for (let i = 0; i < block.length; i++) {
             if (AGENT_LINE_RX.test(block[i])) { agentRaw = block[i].trim(); break; }
         }
-        const agentName = canonicalizeAgent(agentRaw) || 'Unknown Agent';
+        const agentName = canonicalizeAgent(agentRaw);
         
+        // Find kW line - MUST contain "kW" and match exact pattern
         const kwIdx = block.findIndex(l => KW_LINE_RX.test(l.trim()));
-        if(kwIdx === -1) return;
+        if(kwIdx === -1) return; // Skip blocks without a valid kW line
         
         const m = block[kwIdx].match(KW_LINE_RX);
         const solarKW = parseFloat(m[1]);
         const batteryKW = parseFloat(m[2]);
         
+        // Collect product names (going backwards from kW line)
         const productNames = [];
         let i = kwIdx - 1;
         while(i >= 0 && !RECORD_ID_RX.test(block[i].trim())){
             const line = block[i].trim();
+            // Skip: agent names, dates, standalone numbers, prices, statuses
             if (AGENT_LINE_RX.test(line)) { i--; continue; }
             if (/^\d{1,2}-\w{3}-\d{4}$/.test(line)) { i--; continue; }
             if (/^\d+$/.test(line)) { i--; continue; }
@@ -1015,6 +1027,9 @@ function parseCRMBlocks(lines){
     return records.length ? records : null;
 }
 
+// Tab-delimited spreadsheet/CRM export format: scans every cell independently rather
+// than relying on column position, so price/postcode/date cells never get mistaken
+// for a product, agent, or kW figure.
 function parseCRMTable(lines){
     const hasTabs = lines.some(l => l.includes('\t'));
     if(!hasTabs) return null;
@@ -1027,24 +1042,26 @@ function parseCRMTable(lines){
         if (RECORD_ID_RX.test(first)){
             if(current) records.push(current);
             current = {id:first, lines:[fields]};
-        } else if(current){ current.lines.push(fields); }
+        } else if(current) { current.lines.push(fields); }
     });
     if(current) records.push(current);
     if(records.length === 0) return null;
 
     const results = [];
     records.forEach(rec => {
-        let solarKW=null, batteryKW=null, agentRaw=null;
+        let solarKW = null, batteryKW = null, agentRaw = null;
         const productNames = [];
-        rec.lines.forEach(fields => fields.forEach(f => {
-            if(!f) return;
-            const kwm = f.match(KW_LINE_RX);
-            if(kwm){ solarKW=parseFloat(kwm[1]); batteryKW=parseFloat(kwm[2]); return; }
-            if(!agentRaw && AGENT_LINE_RX.test(f)) { agentRaw = f; return; }
-            if(PRODUCT_CELL_RX.test(f)) productNames.push(f);
-        }));
-        if(solarKW===null || batteryKW===null) return;
-        const agentName = canonicalizeAgent(agentRaw) || 'Unknown Agent';
+        rec.lines.forEach(fields => {
+            fields.forEach(f => {
+                if(!f) return;
+                const kwm = f.match(KW_LINE_RX);
+                if(kwm){ solarKW = parseFloat(kwm[1]); batteryKW = parseFloat(kwm[2]); return; }
+                if(!agentRaw && AGENT_LINE_RX.test(f)) { agentRaw = f; return; }
+                if(PRODUCT_CELL_RX.test(f)) productNames.push(f);
+            });
+        });
+        if(solarKW === null || batteryKW === null) return;
+        const agentName = canonicalizeAgent(agentRaw);
         const isDead = productNames.some(p => DEAD_BRAND_RX.test(p));
         const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
         const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
@@ -1083,13 +1100,13 @@ function parsePaste(){
             if(r.solarKW > 0){
                 const res = ensureProduct(r.solarProd, 'std');
                 if(res.created) newProducts++;
-                addRow(r.solarKW, res.p.name, r.id, r.customerName || 'Unknown', 'Active', r.agent);
+                addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
                 added++;
             }
             if(r.batteryKW > 0){
                 const res = ensureProduct(r.batteryProd, r.isDead? 'dead': 'std');
                 if(res.created) newProducts++;
-                addRow(r.batteryKW, res.p.name, r.id, r.customerName || 'Unknown', 'Active', r.agent);
+                addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
                 added++;
             }
         });
