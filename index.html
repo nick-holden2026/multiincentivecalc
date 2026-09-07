@@ -944,7 +944,7 @@ function updateActivity(){
 
 /* ========== PASTE & FILE UPLOAD PARSER ========== */
 const DEAD_BRAND_RX = /ESY|SMILE|FORCE-H|SIH-|SIEB|PYLON|ALPHA|SWATTEN/i;
-const BATTERY_HINT_RX = /KWH|BAT|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
+const BATTERY_HINT_RX = /KWH|\bBAT\b|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
 const PANEL_HINT_RX = /JAM|SPDG|IEC\s?61215|LR|PANEL/i;
 
 // Only recognize SA, SB, 3P as valid project IDs — anchored at BOTH ends so it only
@@ -999,20 +999,17 @@ function parseCRMBlocks(lines){
         const solarKW = parseFloat(m[1]);
         const batteryKW = parseFloat(m[2]);
         
-        // Collect product names (going backwards from kW line)
+        // Collect product names (going backwards from kW line). Only accept a line as a
+        // product name if the line immediately above it is a bare quantity digit (e.g. "1",
+        // "14") — this is how the CRM always pairs qty+product. Without this pairing check,
+        // address/customer-name/region lines that happen to sit before the kW line get
+        // mistaken for products (e.g. "Murrumbateman, NSW 2582" was being picked up as a
+        // battery product name for a Swatten sale).
         const productNames = [];
         let i = kwIdx - 1;
-        while(i >= 0 && !RECORD_ID_RX.test(block[i].trim())){
-            const line = block[i].trim();
-            // Skip: agent names, dates, standalone numbers, prices, statuses
-            if (AGENT_LINE_RX.test(line)) { i--; continue; }
-            if (/^\d{1,2}-\w{3}-\d{4}$/.test(line)) { i--; continue; }
-            if (/^\d+$/.test(line)) { i--; continue; }
-            if (/^\$\s?\d/.test(line)) { i--; continue; }
-            if (/^(active|complete|clos(e|ed)|booked|connection)/i.test(line)) { i--; continue; }
-            
-            productNames.unshift(line);
-            i--;
+        while(i - 1 >= 0 && /^\d+$/.test(block[i-1].trim()) && !RECORD_ID_RX.test(block[i].trim())){
+            productNames.unshift(block[i].trim());
+            i -= 2;
         }
         
         const id = block[0].trim();
