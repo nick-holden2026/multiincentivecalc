@@ -1057,7 +1057,9 @@ function parseCRMTable(lines){
                 const kwm = f.match(KW_LINE_RX);
                 if(kwm){ solarKW = parseFloat(kwm[1]); batteryKW = parseFloat(kwm[2]); return; }
                 if(!agentRaw && AGENT_LINE_RX.test(f)) { agentRaw = f; return; }
-                if(PRODUCT_CELL_RX.test(f)) productNames.push(f);
+                // Strip the leading quantity digit(s) so "3ESY-SH-HM-5-H" and "6ESY-SH-HM-5-H"
+                // are recognized as the same product, not two different catalog entries.
+                if(PRODUCT_CELL_RX.test(f)) productNames.push(f.replace(/^\d+/, ''));
             });
         });
         if(solarKW === null || batteryKW === null) return;
