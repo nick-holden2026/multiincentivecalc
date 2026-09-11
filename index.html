@@ -349,6 +349,20 @@ New Sale
 <div class="card-body"><div class="chart-wrap"><canvas id="mixChart"></canvas></div></div>
 </div>
 </div>
+<div class="charts-row" style="grid-template-columns:repeat(3,1fr);">
+<div class="card">
+<div class="card-header"><h3>Panel Mix</h3></div>
+<div class="card-body"><div class="chart-wrap" style="height:220px;"><canvas id="panelMixChart"></canvas></div></div>
+</div>
+<div class="card">
+<div class="card-header"><h3>Inverter Mix</h3></div>
+<div class="card-body"><div class="chart-wrap" style="height:220px;"><canvas id="inverterMixChart"></canvas></div></div>
+</div>
+<div class="card">
+<div class="card-header"><h3>Battery Mix</h3></div>
+<div class="card-body"><div class="chart-wrap" style="height:220px;"><canvas id="batteryMixChart"></canvas></div></div>
+</div>
+</div>
 <div class="charts-row">
 <div class="card">
 <div class="card-header"><h3>Progress to Next Bonus Tier</h3></div>
@@ -555,6 +569,7 @@ let products = [
 let entries = [];
 let rowId = 0;
 let slabChart = null, mixChart = null;
+let panelMixChart = null, inverterMixChart = null, batteryMixChart = null;
 
 /* ========== RESET DASHBOARD ========== */
 function resetDashboard() {
@@ -850,11 +865,11 @@ function calculate(){
 
     document.getElementById('kpiTotalKw').textContent = totalKw.toFixed(2) + ' kW';
     document.getElementById('kpiSunAmt').textContent = inr(sun.total);
-    document.getElementById('kpiSunSub').textContent = `Base ${inr(sun.base)} + bonus ${inr(sun.bonus)}`;
+    document.getElementById('kpiSunSub').textContent = `${totalKw.toFixed(2)} kW · Base ${inr(sun.base)} + bonus ${inr(sun.bonus)}`;
     document.getElementById('kpiDeadAmt').textContent = inr(dead.total);
     document.getElementById('kpiDeadSub').textContent = `${deadKw.toFixed(2)} kW dead stock`;
     document.getElementById('kpiComboAmt').textContent = inr(combo);
-    document.getElementById('kpiComboSub').textContent = `${totalKw.toFixed(2)} kW total`;
+    document.getElementById('kpiComboSub').textContent = `${totalKw.toFixed(2)} kW total (${deadKw.toFixed(2)} kW dead stock)`;
 
     const sb = document.getElementById('sunBreakdown');
     sb.innerHTML = sun.rows.map(r => `<tr class="${r.kw > 0 ? 'current':''}"><td>${r.label}</td><td>${r.rate}</td><td>${r.kw.toFixed(2)}</td><td class="slab-amount">${inr(r.amt)}</td></tr>`).join('');
@@ -864,6 +879,7 @@ function calculate(){
     db.innerHTML = dead.rows.map(r => `<tr class="${r.kw > 0 ? 'current':''}"><td>${r.label}</td><td>${r.rate}</td><td>${r.kw.toFixed(2)}</td><td class="slab-amount">${inr(r.amt)}</td></tr>`).join('');
 
     updateCharts(sun, dead);
+    updateCategoryCharts();
     updateProgress(totalKw);
 }
 
@@ -911,7 +927,84 @@ function updateCharts(sun, dead) {
     } catch(err){ console.warn('Chart error:', err); }
 }
 
-/* ========== PROGRESS ========== */
+/* ========== CATEGORY MIX CHARTS (Panels / Inverters / Batteries) ========== */
+// Classifies a product name into panel / inverter / battery purely by name pattern.
+// Kept separate from DEAD_BRAND_RX/BATTERY_HINT_RX (which drive the incentive math) so
+// this display-only feature can never affect any financial calculation.
+const CATEGORY_PANEL_RX = /JAM|SPDG|JKM|IEC\s?61215|LR|PANEL/i;
+const CATEGORY_BATTERY_RX = /KWH|\bBAT\b|SH-HM|SMILE|FORCE-H|SIEB/i; // NOTE: SiH- (Swatten inverter) intentionally excluded — only SieB- is Swatten's battery
+function classifyCategory(name){
+    if(CATEGORY_PANEL_RX.test(name)) return 'panel';
+    if(CATEGORY_BATTERY_RX.test(name)) return 'battery';
+    return 'inverter'; // catch-all: everything else in this domain is an inverter model
+}
+
+function computeCategoryMix(category){
+    const byProduct = {};
+    let total = 0;
+    entries.forEach(e => {
+        const v = parseFloat(e.kw) || 0;
+        if(v <= 0) return;
+        if(classifyCategory(e.product) !== category) return;
+        byProduct[e.product] = (byProduct[e.product] || 0) + v;
+        total += v;
+    });
+    const labels = Object.keys(byProduct);
+    const data = labels.map(l => byProduct[l]);
+    return {labels, data, total};
+}
+
+const CATEGORY_PALETTE = ['#0176D3','#1B96FF','#45BFFF','#9050E9','#C29DF2','#2E844A','#6BC490','#FE9339','#FFC078','#B85C00','#0B8ECC','#706E6B'];
+
+function renderCategoryChart(canvasId, chartVarSetter, chartVarGetter, category, emptyLabel){
+    const mix = computeCategoryMix(category);
+    const ctx = document.getElementById(canvasId);
+    if(!ctx) return;
+    const hasData = mix.labels.length > 0;
+    const labels = hasData ? mix.labels : [emptyLabel];
+    const data = hasData ? mix.data : [1];
+    const colors = hasData ? CATEGORY_PALETTE : ['#E5E5E5'];
+    const total = mix.total;
+
+    let chart = chartVarGetter();
+    if(chart){
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.data.datasets[0].backgroundColor = colors;
+        chart.update();
+    } else {
+        chart = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, cutout: '65%' }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 10, font: { size: 10, weight: '600' }, boxWidth: 10 } },
+                    tooltip: {
+                        backgroundColor: '#032D60', padding: 12, cornerRadius: 6,
+                        callbacks: {
+                            label: (c) => {
+                                if(!hasData) return 'No sales yet';
+                                const pct = total > 0 ? (c.parsed / total * 100).toFixed(1) : '0.0';
+                                return `${c.label}: ${c.parsed.toFixed(2)} kW (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        chartVarSetter(chart);
+    }
+}
+
+function updateCategoryCharts(){
+    if(typeof Chart === 'undefined') return;
+    try {
+        renderCategoryChart('panelMixChart', (c)=>panelMixChart=c, ()=>panelMixChart, 'panel', 'No panels yet');
+        renderCategoryChart('inverterMixChart', (c)=>inverterMixChart=c, ()=>inverterMixChart, 'inverter', 'No inverters yet');
+        renderCategoryChart('batteryMixChart', (c)=>batteryMixChart=c, ()=>batteryMixChart, 'battery', 'No batteries yet');
+    } catch(err){ console.warn('Category chart error:', err); }
+}
 function updateProgress(totalKw){
     const tiers = [
         {label: 'Next: ₹25,000 bonus', target:1000, color:''},
