@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sunboost Sales Hub - Multi-Agent Dashboard</title>
+<title>Sunboost Sales Hub Incentive Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -60,10 +60,8 @@ body{background:var(--bg); color:var(--text); font-family:var(--font); line-heig
 .btn-primary:hover{background:var(--primary-dark);}
 .btn-secondary{background:var(--panel); color:var(--text); border-color:var(--border-dark);}
 .btn-secondary:hover{background:#F7F9FB;}
-.btn-ghost{background:transparent;color:var(--primary);border:none;padding:4px 8px;font-size:0.75rem;cursor:pointer;}
-.btn-ghost:hover{background:var(--primary-bg);}
-.tabs{display:flex; gap:4px;margin-top:16px; overflow-x:auto;}
-.tab-btn{padding:10px 16px;font-size:0.85rem; font-weight:600;color:var(--muted); cursor:pointer; border-bottom:3px solid transparent;transition:all 0.15s; background:none; border-top:none; border-left:none; border-right:none;font-family:var(--font); white-space:nowrap;}
+.tabs{display:flex; gap:4px;margin-top:16px;}
+.tab-btn{padding:10px 16px;font-size:0.85rem; font-weight:600;color:var(--muted); cursor:pointer; border-bottom:3px solid transparent;transition:all 0.15s; background:none; border-top:none; border-left:none; border-right:none;font-family:var(--font);}
 .tab-btn:hover{color:var(--text);}
 .tab-btn.active{color:var(--primary); border-bottom-color:var(--primary);}
 .content{padding:24px 32px; flex:1;}
@@ -100,10 +98,9 @@ body{background:var(--bg); color:var(--text); font-family:var(--font); line-heig
 .table-toolbar .filter-chip:hover{background:#E5E5E5;}
 .table-toolbar .filter-chip.active{background:var(--primary-bg);color:var(--primary); border-color:var(--primary);}
 .table-toolbar .search-box{margin-left:auto;position:relative;}
-.table-toolbar .search-box input{padding:6px 12px 6px 32px; border:1px solid var(--border-dark); border-radius:6px;font-family:var(--font); font-size:0.82rem; background:#fff; outline:none; width:200px;}
+.table-toolbar .search-box input{padding:6px 12px 6px 32px; border:1px solid var(--border-dark); border-radius:6px;font-family:var(--font); font-size:0.82rem; background:#fff; outline:none; width:240px;}
 .table-toolbar .search-box input:focus {border-color:var(--primary); box-shadow:0 0 0 2px rgba(1,118,211,0.15);}
 .table-toolbar .search-box svg{position:absolute;left:10px;top:50%; transform:translateY(-50%);color:var(--muted);}
-
 table{width:100%;border-collapse:collapse;}
 thead th{text-align:left;font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;color:var(--muted); font-weight:700; padding:10px 20px; background:#FAFAF9; border-bottom:1px solid var(--border);}
 tbody td{padding:12px 20px; border-bottom:1px solid var(--border); font-size:0.875rem;color:var(--text); vertical-align:middle;}
@@ -158,7 +155,7 @@ tbody tr:last-child td{border-bottom:none;}
 .add-entry-form{padding:16px 20px; background:#FAFAF9; border-bottom:1px solid var(--border); display:none;}
 .add-entry-form.show{display:block;}
 .form-row{display: flex; gap:12px;align-items:flex-end; flex-wrap:wrap;}
-.form-group{flex:1;min-width:140px;}
+.form-group{flex:1;min-width:160px;}
 .form-group label{display:block;font-size:0.75rem; font-weight:700;color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;}
 .form-group input,.form-group select,.form-group textarea{width:100%; padding:8px 12px;border:1px solid var(--border-dark); border-radius:6px;font-family:var(--font); font-size:0.875rem; background:#fff; outline:none;transition:border-color 0.15s, box-shadow 0.15s;}
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {border-color:var(--primary); box-shadow:0 0 0 2px rgba(1,118,211,0.15);}
@@ -226,7 +223,7 @@ footer {
 <div class="brand">Sunboost<span>Sales Hub</span></div>
 <div class="search">
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input type="text" placeholder="Search sales, products, agents..." oninput="document.getElementById('tableSearch').value=this.value; handleSearchInput();">
+<input type="text" placeholder="Search sales, products, customers..." oninput="document.getElementById('tableSearch').value=this.value; handleSearchInput();">
 </div>
 <div class="actions">
 <button class="icon-btn" onclick="resetDashboard()" title="Reset Dashboard & Clear All Data" style="color:#FF7A59;">
@@ -246,10 +243,6 @@ footer {
 <div class="nav-item active" data-nav="dashboard">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
 Dashboard
-</div>
-<div class="nav-item" data-nav="team">
-<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-Team & Agents
 </div>
 <div class="nav-item" data-nav="sales">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -293,7 +286,6 @@ New Sale
 </div>
 <div class="tabs">
 <button class="tab-btn active" data-tab="dashboard">Overview</button>
-<button class="tab-btn" data-tab="team">Team & Agents</button>
 <button class="tab-btn" data-tab="sales">Sales Entries</button>
 <button class="tab-btn" data-tab="products">Products</button>
 <button class="tab-btn" data-tab="import">Import</button>
@@ -302,7 +294,6 @@ New Sale
 </div>
 
 <div class="content">
-<!-- DASHBOARD -->
 <div class="tab-panel active" id="tab-dashboard">
 <div class="kpi-grid">
 <div class="kpi-card">
@@ -377,37 +368,6 @@ New Sale
 </div>
 </div>
 
-<!-- TEAM & AGENTS -->
-<div class="tab-panel" id="tab-team">
-<div class="card">
-<div class="card-header">
-<h3>Agent Performance Leaderboard</h3>
-</div>
-<div class="table-toolbar">
-<div class="search-box" style="margin-left:0;">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input type="text" id="agentSearch" placeholder="Search agent..." oninput="renderAgentTable()" style="width:240px;">
-</div>
-</div>
-<table>
-<thead>
-<tr>
-<th>Agent Name</th>
-<th>Total Projects</th>
-<th>Total kW</th>
-<th>Dead Stock kW</th>
-<th>Sunboost Incentive</th>
-<th>Dead Stock Incentive</th>
-<th>Total Incentive</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody id="agentTableBody"></tbody>
-</table>
-</div>
-</div>
-
-<!-- SALES -->
 <div class="tab-panel" id="tab-sales">
 <div class="card">
 <div class="card-header">
@@ -419,10 +379,6 @@ Add Entry
 </div>
 <div class="add-entry-form" id="addEntryForm">
 <div class="form-row">
-<div class="form-group">
-<label>Agent Name</label>
-<input type="text" id="newEntryAgent" placeholder="e.g. Clay SunBoost">
-</div>
 <div class="form-group">
 <label>Project No.</label>
 <input type="text" id="newEntryProject" placeholder="e.g. SA12345">
@@ -455,24 +411,20 @@ Add Entry
 <span class="filter-chip active" data-filter="all">All</span>
 <span class="filter-chip" data-filter="dead">Dead Stock</span>
 <span class="filter-chip" data-filter="std">Standard</span>
-<select id="agentFilter" style="margin-left:12px; padding:6px 12px; border:1px solid var(--border-dark); border-radius:6px; font-family:var(--font); font-size:0.82rem; background:#fff;">
-<option value="all">All Agents</option>
-</select>
 <div class="search-box">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input type="text" id="tableSearch" placeholder="Search..." oninput="handleSearchInput()">
+<input type="text" id="tableSearch" placeholder="Search by Project No, Name..." oninput="handleSearchInput()">
 </div>
 </div>
 <div id="salesTableWrap">
 <table>
 <thead>
 <tr>
-<th style="width:15%">Agent</th>
-<th style="width:18%">Project / Name</th>
-<th style="width:25%">Product</th>
-<th style="width:12%">Type</th>
-<th style="width:12%">kW Sold</th>
-<th style="width:10%">Status</th>
+<th style="width:22%">Project / Name</th>
+<th style="width:28%">Product</th>
+<th style="width:15%">Type</th>
+<th style="width:15%">kW Sold</th>
+<th style="width:12%">Status</th>
 <th style="width:8%"></th>
 </tr>
 </thead>
@@ -482,7 +434,6 @@ Add Entry
 </div>
 </div>
 
-<!-- PRODUCTS -->
 <div class="tab-panel" id="tab-products">
 <div class="card">
 <div class="card-header"><h3>Product Catalog</h3></div>
@@ -507,11 +458,10 @@ Add Entry
 </div>
 </div>
 
-<!-- IMPORT -->
 <div class="tab-panel" id="tab-import">
 <div class="paste-area" style="margin-bottom: 16px;">
 <h3>Upload CSV or Excel File</h3>
-<p style="font-size:0.85rem; color:var(--muted); margin-bottom:12px;">Import raw data spreadsheets directly.</p>
+<p style="font-size:0.85rem; color:var(--muted); margin-bottom:12px;">Import raw data spreadsheets directly (Columns can include: Project, Name, Product, kW, Status).</p>
 <input type="file" id="fileUpload" accept=".csv, .xlsx, .xls" style="margin-bottom: 12px; display: block;" />
 <button class="btn btn-primary" onclick="handleFileUpload()">Upload File</button>
 <span id="uploadStatus" style="margin-left: 10px; font-size: 0.9rem; font-weight: 600;"></span>
@@ -519,8 +469,8 @@ Add Entry
 
 <div class="paste-area">
 <h3>Paste CRM Data</h3>
-<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below — either a tab-separated table (straight from a spreadsheet) or one field per line. The Agent Name is detected from a line/cell containing "SunBoost" or "3PSolar" — both are treated as the same agent (e.g. "Clay SunBoost" and "Clay 3PSolar" both count as "Clay"). Only project IDs starting with <strong>SA, SB, or 3P</strong> are recognized, and only lines containing "kW" are used for the kW split.</p>
-<textarea id="pasteBox" placeholder="SA99109&#10;Stephen Bishop&#10;19-Aug-2026&#10;Clay SunBoost&#10;...&#10;0kW + 25.6kW&#10;..."></textarea>
+<p style="font-size:0.85rem;color:var(--muted); margin-bottom:12px;">Paste your CRM export below. Supports tab-separated tables, line-per-field blocks, and simple lines. Both <strong>SA...</strong> and <strong>3P...</strong> record IDs are supported.</p>
+<textarea id="pasteBox" placeholder="SA99109&#10;Stephen Bishop&#10;...&#10;0kW + 25.6kW&#10;..."></textarea>
 <div class="paste-actions">
 <button class="btn btn-primary" onclick="parsePaste()">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -532,7 +482,6 @@ Parse &amp; Import
 </div>
 </div>
 
-<!-- REPORTS -->
 <div class="tab-panel" id="tab-reports">
 <div class="card" style="margin-bottom:16px;">
 <div class="card-header">
@@ -577,7 +526,10 @@ function resetDashboard() {
         document.cookie.split(";").forEach(function(c) { 
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/"); 
         });
-        try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch(e) { /* ignore */ }
         const url = new URL(window.location.href);
         url.searchParams.set('nocache', Date.now().toString());
         window.location.replace(url.toString());
@@ -590,7 +542,6 @@ function switchTab(tabName){
     document.querySelectorAll('.nav-item').forEach(n => { n.classList.toggle('active', n.dataset.nav === tabName); });
     document.querySelectorAll('.tab-panel').forEach(p => { p.classList.toggle('active', p.id === 'tab-' + tabName); });
     document.querySelector('.sidebar').classList.remove('open');
-    if(tabName === 'team') renderAgentTable();
 }
 document.querySelectorAll('.tab-btn').forEach(btn => { btn.addEventListener('click', () => switchTab(btn.dataset.tab)); });
 document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', () => switchTab(item.dataset.nav)); });
@@ -634,7 +585,7 @@ function refreshProductDropdowns(){
 }
 
 /* ========== ENTRIES ========== */
-function addRow(kw, product, project, name, status, agent){
+function addRow(kw, product, project, name, status){
     const id = rowId++;
     entries.push({
         id, 
@@ -642,8 +593,7 @@ function addRow(kw, product, project, name, status, agent){
         name: name || 'Customer', 
         status: status || 'Active',
         product: product || products[0]?.name || 'Standard', 
-        kw: kw || 0,
-        agent: agent || 'Unknown'
+        kw: kw || 0
     });
     renderRows(); calculate(); updateActivity();
 }
@@ -655,26 +605,17 @@ function renderRows(){
     const body = document.getElementById('entryBody');
     const search = (document.getElementById('tableSearch').value || '').toLowerCase();
     const filter = document.querySelector('.filter-chip.active')?.dataset.filter || 'all';
-    const agentFilterEl = document.getElementById('agentFilter');
-    
-    const uniqueAgents = [...new Set(entries.map(e => e.agent).filter(Boolean))].sort();
-    const currentAgentFilter = agentFilterEl.value;
-    agentFilterEl.innerHTML = '<option value="all">All Agents</option>' + 
-        uniqueAgents.map(a => `<option value="${a}" ${a === currentAgentFilter ? 'selected' : ''}>${a}</option>`).join('');
-
-    const selectedAgent = agentFilterEl.value;
     
     const filtered = entries.filter(e => {
         const prod = products.find(p => p.name.toLowerCase() === e.product.toLowerCase());
         const type = prod ? prod.type : 'std';
         if(filter !== 'all' && type !== filter) return false;
-        if(selectedAgent !== 'all' && e.agent !== selectedAgent) return false;
-        if(search && !((e.product && e.product.toLowerCase().includes(search)) || (e.project && e.project.toLowerCase().includes(search)) || (e.name && e.name.toLowerCase().includes(search)) || (e.agent && e.agent.toLowerCase().includes(search)))) return false;
+        if(search && !((e.product && e.product.toLowerCase().includes(search)) || (e.project && e.project.toLowerCase().includes(search)) || (e.name && e.name.toLowerCase().includes(search)))) return false;
         return true;
     });
 
     if(filtered.length === 0){
-        body.innerHTML = '<tr><td colspan="7"><div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><h4>No entries found</h4><p>Add your first sale or import data to get started.</p></div></td></tr>';
+        body.innerHTML = '<tr><td colspan="6"><div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><h4>No entries found</h4><p>Add your first sale or import data to get started.</p></div></td></tr>';
         return;
     }
 
@@ -689,7 +630,6 @@ function renderRows(){
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${e.agent || '-'}</strong></td>
             <td><div style="font-weight:700; color:var(--text);">${e.project || '-'}</div><div style="font-size:0.75rem; color:var(--muted);">${e.name || '-'}</div></td>
             <td><div class="product-cell"><span class="product-dot ${type}"></span><div><div class="product-name">${e.product}</div><div class="product-type">${type==='dead'?'Dead Stock eligible':'Standard product'}</div></div></div></td>
             <td><span class="status-badge ${type}"><span class="dot"></span>${type==='dead'?'Dead Stock':'Standard'}</span></td>
@@ -701,15 +641,13 @@ function renderRows(){
     });
 }
 function addEntryFromForm(){
-    const agent = document.getElementById('newEntryAgent').value.trim() || 'Unknown';
     const project = document.getElementById('newEntryProject').value.trim();
     const name = document.getElementById('newEntryName').value.trim();
     const status = document.getElementById('newEntryStatus').value;
     const product = document.getElementById('newEntryProduct').value;
     const kw = document.getElementById('newEntryKw').value;
     if(!kw || parseFloat(kw) <= 0){ alert('Please enter a valid kW value'); return; }
-    addRow(parseFloat(kw), product, project, name, status, canonicalizeAgent(agent));
-    document.getElementById('newEntryAgent').value = '';
+    addRow(parseFloat(kw), product, project, name, status);
     document.getElementById('newEntryProject').value = '';
     document.getElementById('newEntryName').value = '';
     document.getElementById('newEntryKw').value = '';
@@ -722,84 +660,7 @@ document.querySelectorAll('.filter-chip').forEach(c => {
         renderRows();
     });
 });
-document.getElementById('agentFilter').addEventListener('change', renderRows);
 function handleSearchInput() { renderRows(); }
-
-/* ========== AGENT STATS ========== */
-function calculateAgentStats() {
-    const agents = {};
-    const projectCounts = {};
-    
-    entries.forEach(e => {
-        const agent = e.agent || 'Unknown';
-        if (!agents[agent]) {
-            agents[agent] = { name: agent, totalKw: 0, deadKw: 0 };
-            projectCounts[agent] = new Set();
-        }
-        
-        if (e.project) {
-            projectCounts[agent].add(e.project);
-        }
-        
-        const v = parseFloat(e.kw) || 0;
-        agents[agent].totalKw += v;
-        
-        const prod = products.find(p => p.name.trim().toLowerCase() === e.product.trim().toLowerCase());
-        if (prod && prod.type === 'dead') {
-            agents[agent].deadKw += v;
-        }
-    });
-
-    Object.keys(agents).forEach(agent => {
-        const a = agents[agent];
-        a.projectCount = projectCounts[agent].size;
-        // Round away floating-point summation drift before slab math.
-        a.totalKw = Math.round(a.totalKw * 100) / 100;
-        a.deadKw = Math.round(a.deadKw * 100) / 100;
-        const sun = sunboostCalc(a.totalKw);
-        const dead = deadStockCalc(a.deadKw);
-        a.sunIncentive = sun.total;
-        a.deadIncentive = dead.total;
-        a.totalIncentive = sun.total + dead.total;
-    });
-
-    return Object.values(agents).sort((a, b) => b.totalIncentive - a.totalIncentive);
-}
-
-function renderAgentTable() {
-    const tbody = document.getElementById('agentTableBody');
-    const search = (document.getElementById('agentSearch')?.value || '').toLowerCase();
-    const stats = calculateAgentStats();
-    const filtered = stats.filter(a => a.name.toLowerCase().includes(search));
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><h4>No agents found</h4></div></td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = filtered.map(a => `
-        <tr>
-            <td><strong>${a.name}</strong></td>
-            <td><strong>${a.projectCount}</strong></td>
-            <td class="kw-cell">${a.totalKw.toFixed(2)} kW</td>
-            <td class="kw-cell">${a.deadKw.toFixed(2)} kW</td>
-            <td style="color:var(--success); font-weight:600;">${inr(a.sunIncentive)}</td>
-            <td style="color:var(--purple); font-weight:600;">${inr(a.deadIncentive)}</td>
-            <td style="color:var(--primary); font-weight:800; font-size:1rem;">${inr(a.totalIncentive)}</td>
-            <td>
-                <button class="btn-ghost" onclick="filterByAgent('${a.name.replace(/'/g, "\\'")}')">View Sales</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function filterByAgent(agentName) {
-    switchTab('sales');
-    setTimeout(() => {
-        document.getElementById('agentFilter').value = agentName;
-        renderRows();
-    }, 100);
-}
 
 /* ========== CALCULATION ========== */
 function sunboostCalc(totalKw){
@@ -855,7 +716,8 @@ function calculate(){
             if(prod && prod.type === 'dead') deadKw += v;
         }
     });
-    // Round away floating-point summation drift before slab math (see deadStockCalc/sunboostCalc).
+    // Round away floating-point summation drift (e.g. 0.1 + 0.2 !== 0.3 in JS) before slab math,
+    // otherwise totals can land a cent or two off a slab boundary and silently under/over-pay.
     totalKw = Math.round(totalKw * 100) / 100;
     deadKw = Math.round(deadKw * 100) / 100;
 
@@ -1005,6 +867,8 @@ function updateCategoryCharts(){
         renderCategoryChart('batteryMixChart', (c)=>batteryMixChart=c, ()=>batteryMixChart, 'battery', 'No batteries yet');
     } catch(err){ console.warn('Category chart error:', err); }
 }
+
+/* ========== PROGRESS ========== */
 function updateProgress(totalKw){
     const tiers = [
         {label: 'Next: ₹25,000 bonus', target:1000, color:''},
@@ -1031,99 +895,22 @@ function updateActivity(){
         const prod = products.find(p => p.name.toLowerCase() === e.product.toLowerCase());
         const type = prod ? prod.type : 'std';
         const iconClass = type === 'dead' ? 'purple' : 'blue';
-        return `<div class="activity-item fade-in"><div class="activity-icon ${iconClass}">📦</div><div class="activity-content"><div class="activity-title">Added <strong>${e.agent || 'Unknown'}</strong>: ${e.project || 'Project'} - ${parseFloat(e.kw).toFixed(2)} kW</div><div class="activity-meta">${type==='dead'?'Dead Stock':'Standard'} • Status: ${e.status || 'Active'}</div></div></div>`;
+        return `<div class="activity-item fade-in"><div class="activity-icon ${iconClass}">📦</div><div class="activity-content"><div class="activity-title">Added <strong>${e.project || 'Project'} (${e.name || 'Customer'})</strong> - ${parseFloat(e.kw).toFixed(2)} kW</div><div class="activity-meta">${type==='dead'?'Dead Stock':'Standard'} • Status: ${e.status || 'Active'}</div></div></div>`;
     }).join('');
 }
 
 /* ========== PASTE & FILE UPLOAD PARSER ========== */
 const DEAD_BRAND_RX = /ESY|SMILE|FORCE-H|SIH-|SIEB|PYLON|ALPHA|SWATTEN/i;
+// ✅ FIXED: Added \b word boundary to \bEC\s?\d so it matches "EC 10" but ignores "IEC 61215"
 const BATTERY_HINT_RX = /KWH|\bBAT\b|\bEC\s?\d|SH-HM|SMILE|FORCE-H|SIH-|SIEB/i;
 const PANEL_HINT_RX = /JAM|SPDG|IEC\s?61215|LR|PANEL/i;
-
-// Only recognize SA, SB, 3P as valid project IDs — anchored at BOTH ends so it only
-// matches a cell/line that IS entirely a project ID, never a substring of something else.
-const RECORD_ID_RX = /^(SA|SB|3P)\d{3,}$/i;
-
-// Dedicated pattern for product cells in a tab-table row: qty digits glued to a product code.
+const RECORD_ID_RX = /^[A-Za-z0-9]{1,4}\d{3,}$/;
 const PRODUCT_CELL_RX = /^\d+[A-Za-z][A-Za-z0-9\-\/]{2,}/;
-
-// Must explicitly contain "kW" and match the exact "X kW + Y kW" format.
 const KW_LINE_RX = /^(\d+(?:\.\d+)?)\s*kW\s*\+\s*(\d+(?:\.\d+)?)\s*kW$/i;
 
-// Matches either naming convention for the agent line/cell.
-const AGENT_LINE_RX = /(sun\s?boost|3p\s?solar)/i;
-
-// Strips the trailing "SunBoost"/"3PSolar" suffix so "Clay SunBoost" and "Clay 3PSolar"
-// both collapse to the same canonical agent name "Clay" and get merged together.
-function canonicalizeAgent(raw){
-    if(!raw) return 'Unknown Agent';
-    const stripped = raw.trim().replace(/\s*(sun\s?boost|3p\s?solar)\s*$/i, '').trim();
-    return stripped || raw.trim();
-}
-
-function parseCRMBlocks(lines){
-    // Filter out empty lines first to handle formatting inconsistencies
-    const cleanLines = lines.filter(l => l.trim().length > 0);
-    
-    const boundaries = [];
-    cleanLines.forEach((l,i) => { 
-        if(RECORD_ID_RX.test(l.trim())) boundaries.push(i); 
-    });
-    
-    if(boundaries.length === 0) return null;
-    
-    const records = [];
-    boundaries.forEach((start,idx) => {
-        const end = idx+1 < boundaries.length ? boundaries[idx+1] : cleanLines.length;
-        const block = cleanLines.slice(start, end);
-        
-        // Find agent line by searching for "SunBoost" or "3PSolar" (either naming convention)
-        let agentRaw = null;
-        for (let i = 0; i < block.length; i++) {
-            if (AGENT_LINE_RX.test(block[i])) { agentRaw = block[i].trim(); break; }
-        }
-        const agentName = canonicalizeAgent(agentRaw);
-        
-        // Find kW line - MUST contain "kW" and match exact pattern
-        const kwIdx = block.findIndex(l => KW_LINE_RX.test(l.trim()));
-        if(kwIdx === -1) return; // Skip blocks without a valid kW line
-        
-        const m = block[kwIdx].match(KW_LINE_RX);
-        const solarKW = parseFloat(m[1]);
-        const batteryKW = parseFloat(m[2]);
-        
-        // Collect product names (going backwards from kW line). Only accept a line as a
-        // product name if the line immediately above it is a bare quantity digit (e.g. "1",
-        // "14") — this is how the CRM always pairs qty+product. Without this pairing check,
-        // address/customer-name/region lines that happen to sit before the kW line get
-        // mistaken for products (e.g. "Murrumbateman, NSW 2582" was being picked up as a
-        // battery product name for a Swatten sale).
-        const productNames = [];
-        let i = kwIdx - 1;
-        while(i - 1 >= 0 && /^\d+$/.test(block[i-1].trim()) && !RECORD_ID_RX.test(block[i].trim())){
-            productNames.unshift(block[i].trim());
-            i -= 2;
-        }
-        
-        const id = block[0].trim();
-        const customerName = block.length > 1 ? block[1].trim() : 'Unknown';
-        const isDead = productNames.some(p => DEAD_BRAND_RX.test(p));
-        const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
-        const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
-        
-        records.push({id, customerName, agent: agentName, solarKW, batteryKW, isDead, batteryProd, solarProd});
-    });
-    
-    return records.length ? records : null;
-}
-
-// Tab-delimited spreadsheet/CRM export format: scans every cell independently rather
-// than relying on column position, so price/postcode/date cells never get mistaken
-// for a product, agent, or kW figure.
 function parseCRMTable(lines){
     const hasTabs = lines.some(l => l.includes('\t'));
     if(!hasTabs) return null;
-
     const records = [];
     let current = null;
     lines.forEach(line => {
@@ -1131,35 +918,60 @@ function parseCRMTable(lines){
         const first = fields[0];
         if (RECORD_ID_RX.test(first)){
             if(current) records.push(current);
-            current = {id:first, lines:[fields]};
+            current = {id:first, lines: [fields]};
         } else if(current) { current.lines.push(fields); }
     });
     if(current) records.push(current);
     if(records.length === 0) return null;
-
     const results = [];
     records.forEach(rec => {
-        let solarKW = null, batteryKW = null, agentRaw = null;
+        let solarKW = null, batteryKW = null;
         const productNames = [];
         rec.lines.forEach(fields => {
             fields.forEach(f => {
                 if(!f) return;
                 const kwm = f.match(KW_LINE_RX);
                 if(kwm){ solarKW = parseFloat(kwm[1]); batteryKW = parseFloat(kwm[2]); return; }
-                if(!agentRaw && AGENT_LINE_RX.test(f)) { agentRaw = f; return; }
                 // Strip the leading quantity digit(s) so "3ESY-SH-HM-5-H" and "6ESY-SH-HM-5-H"
                 // are recognized as the same product, not two different catalog entries.
                 if(PRODUCT_CELL_RX.test(f)) productNames.push(f.replace(/^\d+/, ''));
             });
         });
         if(solarKW === null || batteryKW === null) return;
-        const agentName = canonicalizeAgent(agentRaw);
         const isDead = productNames.some(p => DEAD_BRAND_RX.test(p));
         const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
         const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
-        results.push({id:rec.id, agent:agentName, solarKW, batteryKW, isDead, batteryProd, solarProd});
+        results.push({id:rec.id, solarKW, batteryKW, isDead, batteryProd, solarProd});
     });
     return results.length ? results : null;
+}
+
+function parseCRMBlocks(lines){
+    const boundaries = [];
+    lines.forEach((l,i) => { if(RECORD_ID_RX.test(l)) boundaries.push(i); });
+    if(boundaries.length === 0) return null;
+    const records = [];
+    boundaries.forEach((start,idx) => {
+        const end = idx+1 < boundaries.length ? boundaries[idx+1] : lines.length;
+        const block = lines.slice(start, end);
+        const kwIdx = block.findIndex(l => KW_LINE_RX.test(l));
+        if(kwIdx === -1) return;
+        const m = block[kwIdx].match(KW_LINE_RX);
+        const solarKW = parseFloat(m[1]);
+        const batteryKW = parseFloat(m[2]);
+        const productNames = [];
+        let i = kwIdx - 1;
+        while(i - 1 >= 0 && /^\d+$/.test(block[i-1]) && !RECORD_ID_RX.test(block[i])){
+            productNames.unshift(block[i]);
+            i -= 2;
+        }
+        const id = block[0];
+        const isDead = productNames.some(p => DEAD_BRAND_RX.test(p));
+        const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
+        const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
+        records.push({id, solarKW, batteryKW, isDead, batteryProd, solarProd});
+    });
+    return records.length ? records : null;
 }
 
 function ensureProduct(name, type){
@@ -1168,66 +980,74 @@ function ensureProduct(name, type){
     return {p, created:false};
 }
 
+function parseSimpleLines(lines){
+    let added = 0, newProducts = 0;
+    lines.forEach(line => {
+        const numMatches = line.match(/\d+(\.\d+)?/g);
+        if(!numMatches) return;
+        const kw = parseFloat(numMatches[numMatches.length-1]);
+        if(isNaN(kw) || kw <= 0) return;
+
+        let productText = line;
+        productText = productText.replace(new RegExp('\\b'+numMatches[numMatches.length-1].replace('.','\\.')+'\\b'), '');
+        productText = productText.replace(/kw|kilowatt|units?|qty/gi, '');
+        productText = productText.replace(/\t|,|\|/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        productText = productText.replace(/^[-–—:\s]+|[-–—:\s]+$/g, '');
+        if(!productText) productText = 'Unspecified';
+
+        const res = ensureProduct(productText, 'std');
+        if(res.created) newProducts++;
+        addRow(kw, res.p.name, null, 'Client', 'Active');
+        added++;
+    });
+    return {added, newProducts};
+}
+
 function parsePaste(){
     const raw = document.getElementById('pasteBox').value;
     const status = document.getElementById('pasteStatus');
     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-    
-    if(lines.length === 0){ 
-        status.textContent = 'Nothing to parse.'; 
-        status.className='paste-status'; 
-        return; 
-    }
+    if(lines.length === 0){ status.textContent = 'Nothing to parse.'; status.className='paste-status'; return; }
     
     const crmRecords = parseCRMTable(lines) || parseCRMBlocks(lines);
-    
     if(crmRecords){
         let added = 0, newProducts = 0;
-        const agentCounts = {};
-        
         crmRecords.forEach(r => {
-            if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
-            agentCounts[r.agent].add(r.id);
-            
             if(r.solarKW > 0){
                 const res = ensureProduct(r.solarProd, 'std');
                 if(res.created) newProducts++;
-                addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                addRow(r.solarKW, res.p.name, r.id, 'Client', 'Active');
                 added++;
             }
             if(r.batteryKW > 0){
                 const res = ensureProduct(r.batteryProd, r.isDead? 'dead': 'std');
                 if(res.created) newProducts++;
-                addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                addRow(r.batteryKW, res.p.name, r.id, 'Client', 'Active');
                 added++;
             }
         });
-        
-        renderProducts(); 
-        renderRows(); 
-        calculate(); 
-        updateActivity();
-        
-        let summary = Object.entries(agentCounts).map(([agent, projects]) => 
-            `${agent}: ${projects.size} projects`
-        ).join(', ');
-        
-        status.textContent = `✔ Recognized ${crmRecords.length} projects → added ${added} sale lines (${summary})`;
+        renderProducts(); renderRows(); calculate(); updateActivity();
+        status.textContent = `✔ Recognized ${crmRecords.length} CRM rows → added ${added} sale lines`;
         status.className = 'paste-status success';
     } else {
-        status.textContent = 'Could not parse format. Please ensure project IDs start with SA, SB, or 3P and contain a kW line.';
-        status.className = 'paste-status';
+        const {added, newProducts} = parseSimpleLines(lines);
+        renderProducts(); renderRows(); calculate(); updateActivity();
+        if(added > 0){
+            status.textContent = `✔ Added ${added} sale line${added===1?'':'s'}` + (newProducts ? `, ${newProducts} new product${newProducts===1?'':'s'} added as Standard — check types in Products tab.` : '.');
+            status.className = 'paste-status success';
+        } else {
+            status.textContent = 'Could not parse format. Please check structure.';
+            status.className = 'paste-status';
+        }
     }
-    
     document.getElementById('pasteBox').value = '';
 }
 
 // Parses raw spreadsheet rows (array of cell values per row) directly by pattern —
-// completely ignoring column headers. Many CRM/web exports use auto-generated header
-// names (CSS class names, UI labels, etc.) instead of real column titles like "Project"
-// or "kW", which made the old header-based lookup silently find nothing and add zero
-// rows. Reuses the exact same detection rules as the paste parsers, including agent
-// detection/canonicalization so "X SunBoost" and "X 3PSolar" still merge correctly.
+// completely ignoring column headers. This is necessary because many CRM/web exports
+// use auto-generated header names (CSS class names, UI labels, etc.) instead of real
+// column titles like "Project" or "kW", which made the old header-based lookup silently
+// find nothing and add zero rows. Reuses the exact same detection rules as the paste parsers.
 function parseUploadedRows(rows){
     const records = [];
     rows.forEach(row => {
@@ -1242,13 +1062,10 @@ function parseUploadedRows(rows){
         const solarKW = parseFloat(m[1]);
         const batteryKW = parseFloat(m[2]);
 
-        const agentCell = cells.find(c => AGENT_LINE_RX.test(c));
-        const agentName = canonicalizeAgent(agentCell);
-
         const customerName = cells[1] || 'Unknown';
 
         // Scan adjacent cell pairs for qty+product: a bare number followed by a
-        // non-numeric, non-price, non-date, non-status, non-agent cell is a product line.
+        // non-numeric, non-price, non-date, non-status cell is treated as a product line.
         const productNames = [];
         for(let i=0; i<cells.length-1; i++){
             const a = cells[i], b = cells[i+1];
@@ -1259,7 +1076,6 @@ function parseUploadedRows(rows){
             if(/^\$\s?\d/.test(b)) continue;
             if(/^\d{1,2}-\w{3}-\d{4}$/.test(b)) continue;
             if(/^(active|complete|clos(e|ed)|booked|connection)/i.test(b)) continue;
-            if(AGENT_LINE_RX.test(b)) continue;
             productNames.push(b);
         }
 
@@ -1267,7 +1083,7 @@ function parseUploadedRows(rows){
         const batteryProd = productNames.find(p => BATTERY_HINT_RX.test(p)) || productNames[productNames.length-1] || 'Battery';
         const solarProd = productNames.find(p => PANEL_HINT_RX.test(p)) || productNames[0] || 'Solar';
 
-        records.push({id: idCell, customerName, agent: agentName, solarKW, batteryKW, isDead, batteryProd, solarProd});
+        records.push({id: idCell, customerName, solarKW, batteryKW, isDead, batteryProd, solarProd});
     });
     return records;
 }
@@ -1301,29 +1117,26 @@ function handleFileUpload() {
             const records = parseUploadedRows(rows);
             if (records.length === 0) {
                 statusLabel.style.color = "var(--error)";
-                statusLabel.innerText = "Could not recognize any rows — expected a Project ID (SA/SB/3P + digits) and a \"X kW + Y kW\" cell in each row.";
+                statusLabel.innerText = "Could not recognize any rows — expected a Project ID (starting with letters+digits, e.g. SA12345) and a \"X kW + Y kW\" cell in each row.";
                 return;
             }
             let added = 0, newProducts = 0;
-            const agentCounts = {};
             records.forEach(r => {
-                if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
-                agentCounts[r.agent].add(r.id);
                 if(r.solarKW > 0){
                     const res = ensureProduct(r.solarProd, 'std');
                     if(res.created) newProducts++;
-                    addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                    addRow(r.solarKW, res.p.name, r.id, r.customerName, 'Active');
                     added++;
                 }
                 if(r.batteryKW > 0){
                     const res = ensureProduct(r.batteryProd, r.isDead ? 'dead' : 'std');
                     if(res.created) newProducts++;
-                    addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active', r.agent);
+                    addRow(r.batteryKW, res.p.name, r.id, r.customerName, 'Active');
                     added++;
                 }
             });
             statusLabel.style.color = "var(--success)";
-            statusLabel.innerText = `Success! Recognized ${records.length} rows across ${Object.keys(agentCounts).length} agents → added ${added} sale lines` + (newProducts ? ` (${newProducts} new products added).` : '.');
+            statusLabel.innerText = `Success! Recognized ${records.length} rows → added ${added} sale lines` + (newProducts ? ` (${newProducts} new products added).` : '.');
             fileInput.value = "";
             renderProducts(); renderRows(); calculate(); updateActivity();
         } catch (error) {
