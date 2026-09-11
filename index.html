@@ -931,32 +931,54 @@ function updateCharts(sun, dead) {
 // Classifies a product name into panel / inverter / battery purely by name pattern.
 // Kept separate from DEAD_BRAND_RX/BATTERY_HINT_RX (which drive the incentive math) so
 // this display-only feature can never affect any financial calculation.
-const CATEGORY_PANEL_RX = /JAM|SPDG|JKM|IEC\s?61215|LR|PANEL/i;
-const CATEGORY_BATTERY_RX = /KWH|\bBAT\b|SH-HM|SMILE|FORCE-H|SIEB/i; // NOTE: SiH- (Swatten inverter) intentionally excluded — only SieB- is Swatten's battery
-function classifyCategory(name){
-    if(CATEGORY_PANEL_RX.test(name)) return 'panel';
-    if(CATEGORY_BATTERY_RX.test(name)) return 'battery';
-    return 'inverter'; // catch-all: everything else in this domain is an inverter model
+/* ========== CATEGORY MIX CHARTS (Panels / Inverters / Batteries) — grouped by BRAND ========== */
+// Classifies a product model name into its brand + category (panel/inverter/battery).
+// Kept entirely separate from DEAD_BRAND_RX/BATTERY_HINT_RX (which drive the incentive
+// math) so this display-only feature can never affect any financial calculation.
+function classifyProduct(name){
+    if(/^JAM/i.test(name)) return {brand:'JA Solar', category:'panel'};
+    if(/^JKM/i.test(name)) return {brand:'Jinko', category:'panel'};
+    if(/^SPDG/i.test(name)) return {brand:'Sunpro Panels', category:'panel'};
+    if(/^S6-EH/i.test(name)) return {brand:'Solis', category:'inverter'};
+    if(/^H3-/i.test(name)) return {brand:'Sungrow', category:'inverter'};
+    if(/SigenStor/i.test(name)) return /BAT/i.test(name) ? {brand:'Sigenergy', category:'battery'} : {brand:'Sigenergy', category:'inverter'};
+    if(/^KH\d/i.test(name)) return {brand:'FoxESS', category:'inverter'};
+    if(/^CQ7/i.test(name)) return {brand:'FoxESS', category:'battery'};
+    if(/^SOFAR/i.test(name)) return {brand:'Sofar Solar', category:'inverter'};
+    if(/ESY/i.test(name)){
+        if(/SH-HM/i.test(name)) return {brand:'ESY', category:'battery'};
+        if(/KWH/i.test(name)) return {brand:'ESY', category:'battery'};
+        if(/HM\d/i.test(name)) return {brand:'ESY', category:'inverter'};
+        return {brand:'ESY', category:'battery'};
+    }
+    if(/SMILE/i.test(name)) return {brand:'Alpha', category:'battery'};
+    if(/FORCE-H/i.test(name)) return {brand:'Pylontech', category:'battery'};
+    if(/SIEB/i.test(name)) return {brand:'Swatten', category:'battery'};
+    if(/SIH-/i.test(name)) return {brand:'Swatten', category:'inverter'};
+    if(/PANEL/i.test(name)) return {brand:'Other', category:'panel'};
+    if(/KWH|\bBAT\b|SH-HM/i.test(name)) return {brand:'Other', category:'battery'};
+    return {brand: (name.split(/[\s\-]/)[0] || 'Other'), category:'inverter'};
 }
 
 function computeCategoryMix(category){
-    const byProduct = {};
+    const byBrand = {};
     let total = 0;
     entries.forEach(e => {
         const v = parseFloat(e.kw) || 0;
         if(v <= 0) return;
-        if(classifyCategory(e.product) !== category) return;
-        byProduct[e.product] = (byProduct[e.product] || 0) + v;
+        const cls = classifyProduct(e.product);
+        if(cls.category !== category) return;
+        byBrand[cls.brand] = (byBrand[cls.brand] || 0) + v;
         total += v;
     });
     // Sort descending by kW, then collapse anything beyond the top 7 into "Other" so a
-    // category with 30+ distinct models doesn't turn the legend into a wall of text.
-    let pairs = Object.entries(byProduct).sort((a,b) => b[1]-a[1]);
+    // category with many brands doesn't turn the legend into a wall of text.
+    let pairs = Object.entries(byBrand).sort((a,b) => b[1]-a[1]);
     const MAX_SLICES = 7;
     if(pairs.length > MAX_SLICES){
         const head = pairs.slice(0, MAX_SLICES);
         const tailTotal = pairs.slice(MAX_SLICES).reduce((sum,p) => sum + p[1], 0);
-        pairs = [...head, [`Other (${pairs.length - MAX_SLICES} models)`, tailTotal]];
+        pairs = [...head, [`Other (${pairs.length - MAX_SLICES} brands)`, tailTotal]];
     }
     return { labels: pairs.map(p=>p[0]), data: pairs.map(p=>p[1]), total };
 }
