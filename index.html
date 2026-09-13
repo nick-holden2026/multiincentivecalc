@@ -228,6 +228,7 @@ footer {
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input type="text" placeholder="Search sales, products, agents..." oninput="document.getElementById('tableSearch').value=this.value; handleSearchInput();">
 </div>
+<span class="sparkle-text" style="font-size:0.82rem; white-space:nowrap;">Made by Clay</span>
 <div class="actions">
 <button class="icon-btn" onclick="resetDashboard()" title="Reset Dashboard & Clear All Data" style="color:#FF7A59;">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -552,11 +553,8 @@ Parse &amp; Import
 </table>
 </div>
 </div>
+</div>
 </main>
-
-<footer>
-    <span class="sparkle-text">Made by Clay</span>
-</footer>
 
 <script>
 /* ========== STATE ========== */
@@ -650,6 +648,12 @@ function addRow(kw, product, project, name, status, agent){
 function removeRow(id){
     entries = entries.filter(e => e.id !== id);
     renderRows(); calculate(); updateActivity();
+}
+// Removes any existing entries for a project ID. Used so re-pasting/re-uploading the
+// same project (accidentally twice, or as a corrected re-export) replaces its old
+// entries instead of adding duplicates on top of them.
+function removeEntriesForProject(projectId){
+    entries = entries.filter(e => e.project !== projectId);
 }
 function renderRows(){
     const body = document.getElementById('entryBody');
@@ -1112,8 +1116,12 @@ const AGENT_LINE_RX = /(sun\s?boost|3p\s?solar)/i;
 // both collapse to the same canonical agent name "Clay" and get merged together.
 function canonicalizeAgent(raw){
     if(!raw) return 'Unknown Agent';
-    const stripped = raw.trim().replace(/\s*(sun\s?boost|3p\s?solar)\s*$/i, '').trim();
-    return stripped || raw.trim();
+    let stripped = raw.trim().replace(/\s*(sun\s?boost|3p\s?solar)\s*$/i, '').trim();
+    if(!stripped) stripped = raw.trim();
+    // Normalize case so "Clay SunBoost", "clay sunboost", "CLAY SUNBOOST" all collapse
+    // to the same canonical agent — without this, inconsistent capitalization in the
+    // CRM export would silently split one person into multiple leaderboard rows.
+    return stripped.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function parseCRMBlocks(lines){
@@ -1237,12 +1245,16 @@ function parsePaste(){
     const crmRecords = parseCRMTable(lines) || parseCRMBlocks(lines);
     
     if(crmRecords){
-        let added = 0, newProducts = 0;
+        let added = 0, newProducts = 0, updatedProjects = 0;
         const agentCounts = {};
         
         crmRecords.forEach(r => {
             if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
             agentCounts[r.agent].add(r.id);
+
+            const alreadyExists = entries.some(e => e.project === r.id);
+            removeEntriesForProject(r.id);
+            if(alreadyExists) updatedProjects++;
             
             if(r.solarKW > 0){
                 const res = ensureProduct(r.solarProd, 'std');
@@ -1267,7 +1279,7 @@ function parsePaste(){
             `${agent}: ${projects.size} projects`
         ).join(', ');
         
-        status.textContent = `✔ Recognized ${crmRecords.length} projects → added ${added} sale lines (${summary})`;
+        status.textContent = `✔ Recognized ${crmRecords.length} projects → added ${added} sale lines (${summary})` + (updatedProjects ? ` — ${updatedProjects} project${updatedProjects===1?'':'s'} replaced existing data (no duplicates).` : '');
         status.className = 'paste-status success';
     } else {
         status.textContent = 'Could not parse format. Please ensure project IDs start with SA, SB, or 3P and contain a kW line.';
@@ -1344,10 +1356,15 @@ function handleFileUpload() {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            // header:1 -> raw array-of-arrays, ignoring whatever the header row says.
-            const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''});
+            // Read every sheet, not just the first — a workbook may have multiple tabs
+            // (e.g. one per agent, one per month) and all of them should be imported.
+            let rows = [];
+            let sheetsWithData = 0;
+            workbook.SheetNames.forEach(name => {
+                const worksheet = workbook.Sheets[name];
+                const sheetRows = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''});
+                if(sheetRows.length > 0){ sheetsWithData++; rows = rows.concat(sheetRows); }
+            });
             if (rows.length === 0) {
                 statusLabel.style.color = "var(--error)";
                 statusLabel.innerText = "File is empty.";
@@ -1359,11 +1376,16 @@ function handleFileUpload() {
                 statusLabel.innerText = "Could not recognize any rows — expected a Project ID (SA/SB/3P + digits) and a \"X kW + Y kW\" cell in each row.";
                 return;
             }
-            let added = 0, newProducts = 0;
+            let added = 0, newProducts = 0, updatedProjects = 0;
             const agentCounts = {};
             records.forEach(r => {
                 if (!agentCounts[r.agent]) agentCounts[r.agent] = new Set();
                 agentCounts[r.agent].add(r.id);
+
+                const alreadyExists = entries.some(e => e.project === r.id);
+                removeEntriesForProject(r.id);
+                if(alreadyExists) updatedProjects++;
+
                 if(r.solarKW > 0){
                     const res = ensureProduct(r.solarProd, 'std');
                     if(res.created) newProducts++;
@@ -1378,7 +1400,7 @@ function handleFileUpload() {
                 }
             });
             statusLabel.style.color = "var(--success)";
-            statusLabel.innerText = `Success! Recognized ${records.length} rows across ${Object.keys(agentCounts).length} agents → added ${added} sale lines` + (newProducts ? ` (${newProducts} new products added).` : '.');
+            statusLabel.innerText = `Success! Read ${sheetsWithData} sheet${sheetsWithData===1?'':'s'}, recognized ${records.length} rows across ${Object.keys(agentCounts).length} agents → added ${added} sale lines` + (newProducts ? ` (${newProducts} new products added).` : '.') + (updatedProjects ? ` ${updatedProjects} project${updatedProjects===1?'':'s'} replaced existing data (no duplicates).` : '');
             fileInput.value = "";
             renderProducts(); renderRows(); calculate(); updateActivity();
         } catch (error) {
